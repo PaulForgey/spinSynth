@@ -1,0 +1,91 @@
+With the exeption of the MIDI input and rotational controls, all supporting
+circuits are provided by the Professional Development Board. The schematic may
+be downloaded from http://www.parallax.com.
+
+Power supply with 3.3v and 5v.
+
+Parallax Propeller:
+5 MHz crystal
+Prop Plug or equivilent circuit on P30 and P31
+Reset button
+24LC256 EEPROM
+
+VGA output:
+5x 270ohm resistor
+3x 560ohm resistor
+3x 130ohm resistor
+1x VGA connector
+
+MIDI:
+1x 1N914 diode
+1x 220ohm resistor
+1x 180ohm resistor
+1x PC900V optipcal isolator
+1x 5pin DIN female
+
+Flash Storage:
+1x W25Q32FV 
+
+Audio Output:
+1x 10K resistor
+1x 10nF capacitor
+1x 1uF capacitor
+
+Controls:
+3x 2 bit gray code rotational encoding knobs
+6x 10K resistor
+
+The audio, VGA and Propeller supporting circuits are all quite well
+documented by Parallax.
+
+The flash storage is a subsection of the Propeller Memory Card, specifically
+the W25Q32FV.
+
+Flash connections:
+memory:     propeller:
+IHOLD/IO3   P3
+ICS         P5
+DO/IO1      P1
+CLK         P7
+DI/IO0      P0
+IWP/IO2     P2
+
+Audio:
+Audio circuit is connected to P9. A significant amount of noise could probably
+be removed by buffering the output using a comparitor and high value bypass
+capacitor on its power supply input.
+
+VGA:
+VGA circuit is connected P16-P23:
+P16:        V
+P17:        H
+P18:        B0
+P19:        B1
+P20:        G0
+P21:        G1
+P22:        R0
+P23:        R1
+
+MIDI:
+MIDI circuit is as described by the MIDI electrical specification (available
+from http://www.midi.org). For 3.3v operation, the open collector of the
+optipcal isolator is pulled high to 3.3v using a 180ohm resistor (in place
+of the 280ohm 5V circuit). The PC900V itself still must be powered with 5v.
+
+If you search Google for quick MIDI interface circuits, you may find some
+simply using a resistor from the device's output directly into the input port
+of the microcontroller. DO NOT DO THIS! The Propeller is not 5v tolerant if
+the device is using a 5v current loop, and it blows the design point of MIDI.
+The device is expecting an isolated current loop and is making no guarantees
+as to its output voltage. Further, the optical isolator is used for a reason
+to avoid current loops.
+
+Control circuit:
+The inputs to the Propeller (and thus output from the switches) are pulled
+high to 3.3v using 10k resistors. Closing the switch should pull the selected
+outputs low to ground.
+
+P10-P15 are used for the switch inputs. P10-11 is fine control, P12-13 is
+coarse control, P14-15 is menu selection.
+
+
