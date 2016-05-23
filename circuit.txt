@@ -1,4 +1,4 @@
-With the exeption of the MIDI input and rotational controls, all supporting
+With the exception of the MIDI input and rotational controls, all supporting
 circuits are provided by the Professional Development Board. The schematic may
 be downloaded from http://www.parallax.com.
 
@@ -6,7 +6,7 @@ Power supply with 3.3v and 5v.
 
 Parallax Propeller:
 5 MHz crystal
-Prop Plug or equivilent circuit on P30 and P31
+Prop Plug or equivalent circuit on P30 and P31
 Reset button
 24LC256 EEPROM
 
@@ -20,7 +20,7 @@ MIDI:
 1x 1N914 diode
 1x 220ohm resistor
 1x 180ohm resistor
-1x PC900V optipcal isolator
+1x PC900V optical isolator
 1x 5pin DIN female
 
 Flash Storage:
@@ -52,7 +52,7 @@ IWP/IO2     P2
 
 Audio:
 Audio circuit is connected to P9. A significant amount of noise could probably
-be removed by buffering the output using a comparitor and high value bypass
+be removed by buffering the output using a comparator and high value bypass
 capacitor on its power supply input.
 
 VGA:
@@ -69,7 +69,7 @@ P23:        R1
 MIDI:
 MIDI circuit is as described by the MIDI electrical specification (available
 from http://www.midi.org). For 3.3v operation, the open collector of the
-optipcal isolator is pulled high to 3.3v using a 180ohm resistor (in place
+optical isolator is pulled high to 3.3v using a 180ohm resistor (in place
 of the 280ohm 5V circuit). The PC900V itself still must be powered with 5v.
 
 If you search Google for quick MIDI interface circuits, you may find some
