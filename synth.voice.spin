@@ -59,7 +59,7 @@ VAR
     BYTE    Playing_                        ' playing state (depending on pedal, is not simply KeyDown_)
     
 PUB Init(VoicePtr, PatchPtr, PedalPtr, BendPtr, WheelPtr) | i
-{{
+{
 Initialize voice instance
 
 VoicePtr:   long pointer to allocated oscillator parameters
@@ -67,7 +67,7 @@ PatchPtr:   word pointer to patch data
 PedalPtr:   byte pointer to pedal state
 BendPtr:    long pointer to pitch bend state
 WheelPtr:   byte pointer to modulation wheel state
-}}
+}
     VoicePtr_ := VoicePtr
     PatchPtr_ := PatchPtr
     PedalPtr_ := PedalPtr
@@ -79,12 +79,12 @@ WheelPtr:   byte pointer to modulation wheel state
         env[i].Init(@LONG[VoicePtr_][i * 4], @WORD[PatchPtr][Patch_Op + Patch_Env + Patch_OpWords * i])
 
 PUB Advance | c, op, updateBend, updateWheel
-{{
+{
 Idle state update.
 
 Read new state of midi controls
 Advance envelopes in time
-}}
+}
     UpdatePedal
     
     c := PitchBend
@@ -109,21 +109,21 @@ Advance envelopes in time
         env[op].Advance
 
 PRI UpdatePedal | op
-{{
+{
 If sustain pedal is down, do not enter key-up envelope state
 If sustain pedal is up, key-up envelope states as needed
-}}
+}
     if (Playing_ AND NOT (KeyDown_ OR Pedal))
         Playing_ := FALSE
         repeat op from 0 to Patch_Ops - 1
             env[op].Up
 
 PUB Down(K, V) | op
-{{
+{
 Key down
 
 Enter envelope key-down states with velocity scale
-}}
+}
     Key_ := K
     KeyDown_ := TRUE
     Playing_ := TRUE
@@ -136,34 +136,34 @@ Enter envelope key-down states with velocity scale
         OpDown(op, K, V)
 
 PUB Key
-{{
+{
 Last/current key being played
-}}
+}
     return Key_
 
 PUB Up
-{{
+{
 Key up
 
 Unless the sustain pedal is down, enter key-up states for each envelope
-}}
+}
     KeyDown_ := FALSE
     UpdatePedal
 
 PUB Playing
-{{
+{
 In both key-up state and the sustain pedal is up
-}}
+}
     return Playing_ <> 0
 
 PRI OpDown(Op, K, V) | n, s
-{{
+{
 Key down state per operator
 
 Op: operator (0-3)
 K:  MIDI note $00-$7f
 V:  Velocity $01-$7f
-}}
+}
     s := Frequency(Op)              ' frequency configuration
 
     if (s & $100)                   ' fixed frequency
@@ -190,67 +190,67 @@ V:  Velocity $01-$7f
 
 
 PRI BentFrequencyForIndex(Op, n)
-{{
+{
 For a note value in cents, return an actual frequency per configured multiplier and pitch bend state
-}}
+}
     n += (Bend_ * 1200) ~> 12
     return (FrequencyForIndex(n) * Frequency(op)) >> 4
 
 ' global state accessors
 PRI PitchBend
-{{
+{
 Current pitch bend state
-}}
+}
     return LONG[BendPtr_]
 
 PRI Pedal
-{{
+{
 Current pedal state
-}}
+}
     return BYTE[PedalPtr_]
 
 PRI Wheel
-{{
+{
 Current modulation wheel state
-}}
+}
     return BYTE[WheelPtr_]
 
 ' oscillator accessors
 PRI SetFrequency(Op, F)
-{{
+{
 Set oscillator Op to frequency F (which is actually a 16 bit value)
-}}
+}
     LONG[VoicePtr_][Op * 4] := F
 
 ' patch accessors
 PRI Level(Op)
-{{
+{
 Configured level, 0-$1ff
-}}
+}
     return WORD[PatchPtr_][Patch_Op + Patch_OpWords * Op + Patch_Level]
 
 PRI Velocity(Op)
-{{
+{
 Configured velocity sensitivity, 0-$1ff
-}}
+}
     return WORD[PatchPtr_][Patch_Op + Patch_OpWords * Op + Patch_Velocity]
 
 PRI WheelSense(Op)
-{{
+{
 Modulation wheel sensitivity, 0-$1ff
-}}
+}
     return WORD[PatchPtr_][Patch_Op + Patch_OpWords * Op + Patch_Wheel]
     
 PRI Frequency(Op)
-{{
+{
 Frequency multiplier/fixed frequency, 0-$ff (multiplier, $10=unity) or $100-$17f (fixed)
-}}
+}
     return WORD[PatchPtr_][Patch_Op + Patch_OpWords * Op + Patch_Frequency]
 
 PRI Detune(Op) | v
-{{
+{
 Detune setting, -256 - +255
-}}
+}
     v := WORD[PatchPtr_][Patch_Op + Patch_OpWords * Op + Patch_Detune]
     
     if (v & $100)
@@ -258,10 +258,10 @@ Detune setting, -256 - +255
     return v
 
 PRI FrequencyForIndex(N) | octave, index, f
-{{
+{
 Given a note in cents, return frequency
 N: note 0-13199
-}}
+}
     N #>= 0
     N <#= 13199
     octave := N / 1200

@@ -12,21 +12,21 @@ VAR
     BYTE    Selection_                  ' selected operator
     
 PUB GraphicsPtr
-{{
+{
 Return long pointer to free form graphics buffer
-}}
+}
     return @Buffer_[0]
     
 PUB Clear
-{{
+{
 Clear the graphics area
-}}
+}
     LongFill(@Buffer_[0], 0, 256)
 
 PUB SetAlgorithm(Algo) | o, c, ptr
-{{
+{
 Display diagram of algorith Algo (0 based)
-}}
+}
     Clear
     Algo_ := Algo
     ptr := @BYTE[@OperatorConnections][Algo * 8]
@@ -40,39 +40,39 @@ Display diagram of algorith Algo (0 based)
             Connect(c-1, o)
     
 PUB SelectOperator(Op)
-{{
+{
 Indicate operator Op is selected by filling it
-}}
+}
     Box(Selection_)
     Selection_ := Op
     Square(Op)
     
 PRI TileAt(X, Y)
-{{
+{
 Return long pointer to 16x1 four color tile at X,Y
-}}
+}
     return @LONG[@Buffer_][X + 8 * Y]
 
 PRI Operator(Op)
-{{
+{
 Return byte pointer to two bytes (X,Y) for operator Op's location
 0,0 is top left, 3,3 is bottom right
-}}
+}
     return (@BYTE[@OperatorLayouts][Algo_*8]) + (Op * 2)
 
 PRI TileAtOperator(Op) | ptr, x, y
-{{
+{
 Return long pointer to first tile location of operator Op
-}}
+}
     ptr := Operator(Op)
     x := BYTE[ptr][0]
     y := BYTE[ptr][1]
     return TileAt(x * 2, y * 8)
 
 PRI Box(Op) | i, ptr
-{{
+{
 Draw a filled box at the operator's location
-}}
+}
     ptr := TileAtOperator(Op)
     LONG[ptr][1*8] := %%3333333333333333
     LONG[ptr][6*8] := %%3333333333333333
@@ -80,9 +80,9 @@ Draw a filled box at the operator's location
         LONG[ptr][i*8] := %%3000000000000003
     
 PRI Square(Op) | i, ptr
-{{
+{
 Draw a hollow square at the operator's location
-}}
+}
     ptr := TileAtOperator(Op)
     LONG[ptr][1*8] := %%3333333333333333
     LONG[ptr][6*8] := %%3333333333333333
@@ -90,11 +90,11 @@ Draw a hollow square at the operator's location
         LONG[ptr][i*8] := %%3222222222222223
 
 PRI Connect(F, T) | ptr1, ptr2, x1, y1, x2, y2, tile1, tile2, x, y, ptr
-{{
+{
 Draw a connecting line from operator F to operator T
 Outputs come out from bottom and inputs go in to the top
 If F modulates T, T must be lower vertically (higher Y value)
-}}
+}
     ptr1 := Operator(F)
     ptr2 := Operator(T)
     ' From the bottom and To the top
@@ -112,19 +112,19 @@ If F modulates T, T must be lower vertically (higher Y value)
         Horizontal(x1+1, x2, y2)    ' and slide into it
     
 PRI Vertical(X, Y1, Y2) | y, ptr
-{{
+{
 Draw vertical line at X from Y1 to Y2
 X resolution is twice operator width (so X location for a given operator would be 2*)
-}}
+}
     repeat y from Y1 to Y2
         ptr := TileAt(X>>1, y)
         LONG[ptr] |= %%0000000110000000
         
 PRI Horizontal(X1, X2, Y) | x, ptr
-{{
+{
 Draw horizontal line at Y from X1 to X2
 X resolution if twice operator width (so X location for a given operator would be 2*)
-}}
+}
     if X1 <> X2
         if (X2 > X1 AND (X2 & 1))
             --X2

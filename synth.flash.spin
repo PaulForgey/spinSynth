@@ -21,13 +21,13 @@ VAR
     WORD    SectorNum_          ' sector number of SectorBuf_
 
 PUB Load(PatchNum, PatchPtr, PatchSize) | sector, record, ptr
-{{
+{
 Load a patch
 
 PatchNum: patch number
 PatchPtr: byte pointer to patch data
 PatchSize: patch size (in bytes!)
-}}
+}
     sector := PatchNum >> 4                     ' 16 patches per sector
     record := PatchNum & 15                     ' patch number mod 16 within sector
     ptr := @SectorBuf_[record * $100]           ' 256 bytes per patch
@@ -40,13 +40,13 @@ PatchSize: patch size (in bytes!)
     return TRUE                                 ' return success
     
 PUB Save(PatchNum, PatchPtr, PatchSize) | sector, record, ptr, i, j
-{{
+{
 Save a patch
 
 PatchNum: patch numner
 PatchPtr: byte pointer to patch data
 PatchSize; patch size (in bytes!)
-}}
+}
     sector := PatchNum >> 4                     ' 16 patches per sector
     record := PatchNum & 15                     ' patch number mod 16 within sector
     ptr := @SectorBuf_[record * $100]           ' 256 bytes per patch
@@ -75,9 +75,9 @@ PatchSize; patch size (in bytes!)
     return TRUE                                 ' return success
 
 PRI EraseSector
-{{
+{
 Erase $1000 byte sector at SectorNum_
-}}
+}
     if NOT Start
         return FALSE
     flash.EraseFlash((SectorNum_-1) * $1000)
@@ -85,10 +85,10 @@ Erase $1000 byte sector at SectorNum_
     return TRUE
     
 PRI WriteRecord(Record) 
-{{
+{
 Write record from loaded sector back to flash
 Record: record numer 0-$ff
-}}
+}
     if NOT Start
         return FALSE
     
@@ -97,10 +97,10 @@ Record: record numer 0-$ff
     return TRUE
 
 PRI LoadSector(Sector)
-{{
+{
 Read sector from flash, updating current data
 Sector: sector number
-}}
+}
     if Sector <> (SectorNum_-1) ' skip if our sector data is current
         if NOT Start
             return FALSE
@@ -111,9 +111,9 @@ Sector: sector number
     return TRUE
 
 PRI Start
-{{
+{
 Start back end flash driver
-}}
+}
     if flash.Start(Pin_Clk, Pin_DI, Pin_DO, Pin_CS, -1, Pin_IO2, Pin_IO3) =< 0
         return FALSE
     return TRUE

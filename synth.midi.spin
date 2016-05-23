@@ -17,9 +17,9 @@ VAR
     LONG    Buffer_[BufferLength]                       ' ring buffer
     
 PUB Start(PinNum)
-{{
+{
 Start MIDI receiver reading from PinNum
-}}
+}
     Stop
 
     Params_[0] := 1 << PinNum
@@ -28,23 +28,23 @@ Start MIDI receiver reading from PinNum
     return (Cog_ := cognew(@entry, @Params_) + 1)
 
 PUB Stop
-{{
+{
 Stop MIDI receiver, freeing a cog
-}}
+}
     if Cog_
         cogstop(Cog_ - 1)
     Cog_ := 0
 
 PUB Empty
-{{
+{
 returns boolean TRUE if receiver is empty
-}}
+}
     return RPos_ == WPos_
  
 PUB Data
-{{
+{
 returns one long of a received message, blocking if empty
-}}
+}
     repeat while WPos_ == RPos_
         ' block
     result := Buffer_[RPos_++]

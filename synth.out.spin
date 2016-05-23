@@ -12,13 +12,13 @@ VAR
     BYTE    Scope_[480]             ' oscilliscope date
     
 PUB Start(PinNum, InputsPtr, TriggersPtr, NumInputs)
-{{
+{
 Start audio output
 PinNum:         audio output pin
 InputsPtr:      pointer to array of long pointers to audio data
 TriggersPtr:    pointer to array of byte pointers to triggers
 NumInput:       array size of InputsPtr and TriggersPtr
-}}
+}
     Stop
 
     Params_[0] := PinNum
@@ -30,17 +30,17 @@ NumInput:       array size of InputsPtr and TriggersPtr
     return (Cog_ := cognew(@entry, @Params_) + 1)
     
 PUB Stop
-{{
+{
 Stop audio output, freeing cog
-}}
+}
     if Cog_
         cogstop(Cog_ - 1)
     Cog_ := 0
     
 PUB ScopePtr
-{{
+{
 Return byte pointer to scope data
-}}
+}
     return @Scope_
     
 DAT

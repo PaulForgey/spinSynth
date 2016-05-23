@@ -20,41 +20,41 @@ VAR
     BYTE    Wheel_          ' modulation wheel state
 
 PUB Init(OscPtr, EnvPtr)
-{{
+{
 Initialize envelope
 OscPtr: long pointer to oscillator parameters
 EnvPtr: word pointer to envelope
-}}
+}
     OscPtr_ := OscPtr
     EnvPtr_ := EnvPtr
     Duration_ := 1
     LastT_ := -1
     
 PRI EnvRate(S)
-{{
+{
 Configured Rate, 0-$1ff
-}}
+}
     return WORD[EnvPtr_][(S << 1)]
 
 PRI EnvLevel(S)
-{{
+{
 Configured Level, 0-$1ff
-}}
+}
     return WORD[EnvPtr_][(S << 1) | 1]
     
 PRI Looping
-{{
+{
 Loop L3->L2, Boolean
-}}
+}
     return WORD[EnvPtr_][8] <> 0
 
 PRI SetLevel(L) | e, f
-{{
+{
 Set effective oscillator output level with log2 scaling
 L: 31 bit value 0-$7fff_ffff, although only bits 31-16 are actually significant
 
 The oscillator uses 32 bit unsigned values to facilitate gradual per-sample movements
-}}
+}
 
     ' limit to 31 bit unsigned
     if L < 0
@@ -80,14 +80,14 @@ The oscillator uses 32 bit unsigned values to facilitate gradual per-sample move
     LONG[OscPtr_][1] := ((WORD[$c000][L & $7ff]) | (e << 16)) << 11
 
 PRI Transition(S) | rate
-{{
+{
 Transiation state S:
 0- L1
 1- L2
 2- L3
 3- L4
 4- L4+1 (done)
-}}
+}
     Clk_ := CNT     ' system clock at start of transition
     State_ := S     ' new state
     Base_ := Env_   ' level coming from
@@ -100,40 +100,40 @@ Transiation state S:
         Advance     ' start first idle advance to update with new state
 
 PUB State
-{{
+{
 Current state 0-4
-}}
+}
     return State_
 
 PUB SetWheel(W)
-{{
+{
 Set modulation wheel value, 0-$7f
-}}
+}
     Wheel_ := W
     SetLevel(Env_)
 
 PUB Down(Scale)
-{{
+{
 Enter key down state with scale 0-$200 (usually 0-$1ff) by transitioning to state 0
-}}
+}
     Scale_ := Scale
     Transition(0)
     
 PUB Up
-{{
+{
 Enter key-up state by transitioning to state 3
-}}
+}
     Transition(3)
     
 PUB Advance | t, d, l
-{{
+{
 Idle advance our way through the envelope
 completion of state 0 -> 1, 1 -> 2
 state 2 stays there until key up, or if looping is set, transitions back to state 2
 completion of state 3 -> 4
 state 4 is terminal
 within this scope, state 2 is also terminal if not looping. Regarless, state 3 needs an explicit transition
-}}
+}
     if (State < 4) ' do nothing for state 4
         t := CNT - Clk_                                     ' measure elapsed time
         

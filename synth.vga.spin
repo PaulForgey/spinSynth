@@ -18,11 +18,11 @@ VAR
     WORD    Text_[1500]                 ' text buffer (as a playfield; TextPtr_ indicates exactly where)
 
 PUB Start(ScopePtr, GraphicsPtr) | _i
-{{
+{
 Start VGA graphics
 ScopePtr:    byte pointer to scope data
 GraphicsPtr: long pointer to free form graphics area
-}}
+}
     Stop
 
     TextPtr_ := @Text_
@@ -37,28 +37,28 @@ GraphicsPtr: long pointer to free form graphics area
     return Cog_ := (cognew(@entry, @Params_) + 1)
 
 PUB Stop
-{{
+{
 Stop VGA graphics, freeing cog
-}}
+}
     if Cog_
         cogstop(Cog_ - 1)
     Cog_ := 0
 
 PUB Scroll(L)
-{{
+{
 Scroll to where text line L is at top of screen
-}}
+}
     L <#= Height - 14
     TextPtr_ := @Text_[L * 25]
 
 PUB TextAt(S, X, Y, Color) | ptr, c, p
-{{
+{
 Place 0-terminated text S at X, Y, with color Color
 X: 0-24
 Y: 0-14
 S: 0 terminated string
 Color: 0-3
-}}
+}
     ptr := Y * 25 + X
     p := 0
     Color <<= 12
@@ -67,9 +67,9 @@ Color: 0-3
         ptr++
 
 PUB Highlight(Col, Width, At, On) | ptr
-{{
+{
 Highlight Width characters from Col at line At, according to boolean On
-}}
+}
     ptr := At * 25 + Col
     repeat while (Width-- > 0)
         if On
@@ -78,9 +78,9 @@ Highlight Width characters from Col at line At, according to boolean On
             Text_[ptr++] &= !$800
 
 PUB SetColor(Col, Width, At, C) | ptr, cell
-{{
+{
 Set color C of Width characters from Col at line At
-}}
+}
     ptr := At * 25 + Col
     repeat while (Width-- > 0)
         cell := Text_[ptr] & !($3 << 12)
@@ -88,9 +88,9 @@ Set color C of Width characters from Col at line At
         
 
 PUB SetStatus(Status) | p, c
-{{
+{
 Set the reserved bottom line of status text
-}}
+}
     p := 0
     repeat while (c := BYTE[Status][p])
         Status_[++p] := ((c & 1) << 10) | (c & $fe) | $200

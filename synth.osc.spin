@@ -31,32 +31,32 @@ VAR
     LONG    Output_[$20]                                ' two 16 sample windows of output
 
 PUB OutputPtr
-{{
+{
 return long pointer to output sample buffer
 output format is in signed longs
-}}
+}
     return @Output_
     
 PUB TriggerPtr
-{{
+{
 return byte pointer to trigger
 write a non-0 value to activate, set bit 6 pointing to Output_[0] or Output_[$10]
-}}
+}
     return @Trigger_
 
 PUB Profile
-{{
+{
 return number of clock cycles per last frame redered
-}}
+}
     return -Profile_
 
 PUB Start(InputsPtr, AlgoPtr, FeedbackPtr)
-{{
+{
 start an oscillator cog
 InputsPtr:  long pointer to 32 longs (4 values per 8 oscillators)
 AlgoPtr:    byte pointer to alogirthm selection, 0 based
 FeedbackPtr:byte pointer to feedback shift value, higher is lower, 16 turns it off completely
-}}
+}
     Stop
 
     Params_[0] := InputsPtr
@@ -72,9 +72,9 @@ FeedbackPtr:byte pointer to feedback shift value, higher is lower, 16 turns it o
     return (Cog_ := cognew(@entry, @Params_) + 1)
     
 PUB Stop
-{{
+{
 stop an oscillator cog, freeing it
-}}
+}
     if (Cog_)
         cogstop(Cog_ - 1)
     Cog_ := 0
@@ -488,8 +488,8 @@ Always read zero input from Zero, and never write to it
 Oscillators 3 and 7 are feedback oscillators, so input to them are feedback scaled
 }}
 
-' Algorithm 1
 {{
+ Algorithm 1
 1 2 3 4*
 }}
 '       input       add         mov             mbz
@@ -502,8 +502,8 @@ BYTE    Bus_Zero,   Bus_Out,    Bus_Nowhere,    0
 BYTE    Bus_Zero,   Bus_Out,    Bus_Nowhere,    0
 BYTE    Bus_Zero,   Bus_Out,    Bus_Nowhere,    0
 BYTE    Bus_4,      Bus_Out,    Bus_4,          0
-' Algorithm 2
 {{
+ Algorithm 2
     4*
     |
 1 2 3
@@ -518,8 +518,8 @@ BYTE    Bus_Zero,   Bus_Out,    Bus_Nowhere,    0
 BYTE    Bus_Zero,   Bus_Out,    Bus_Nowhere,    0
 BYTE    Bus_6,      Bus_Out,    Bus_Nowhere,    0
 BYTE    Bus_6,      Bus_Nowhere,Bus_6,          0
-' Algorithm 3
 {{
+ Algorithm 3
     4*
 |=|=|
 1 2 3
@@ -534,8 +534,8 @@ BYTE    Bus_4,      Bus_Out,    Bus_Nowhere,    0
 BYTE    Bus_4,      Bus_Out,    Bus_Nowhere,    0
 BYTE    Bus_4,      Bus_Out,    Bus_Nowhere,    0
 BYTE    Bus_4,      Bus_Nowhere,Bus_4,          0
-' Algorithm 4
 {{
+ Algorithm 4
 2 4*
 | |
 1 3
@@ -550,8 +550,8 @@ BYTE    Bus_4,      Bus_Out,    Bus_Nowhere,    0
 BYTE    Bus_Zero,   Bus_Nowhere,Bus_4,          0
 BYTE    Bus_7,      Bus_Out,    Bus_Nowhere,    0
 BYTE    Bus_7,      Bus_Nowhere,Bus_7,          0
-' Algorithm 5
 {{
+ Algorithm 5
   4*
   |
   3
@@ -568,8 +568,8 @@ BYTE    Bus_Zero,   Bus_Out,    Bus_Nowhere,    0
 BYTE    Bus_5,      Bus_Out,    Bus_Nowhere,    0
 BYTE    Bus_6,      Bus_Nowhere,Bus_5,          0
 BYTE    Bus_6,      Bus_Nowhere,Bus_6,          0
-' Algorithm 6
 {{
+ Algorithm 6
   4-|
   | |
   3 |
@@ -586,8 +586,8 @@ BYTE    Bus_Zero,   Bus_Out,    Bus_Nowhere,    0
 BYTE    Bus_5,      Bus_Out,    Bus_7,          0
 BYTE    Bus_6,      Bus_Nowhere,Bus_5,          0
 BYTE    Bus_7,      Bus_Nowhere,Bus_6,          0
-' Algorithm 7
 {{
+ Algorithm 7
   4*
   |
 2 3
@@ -604,8 +604,8 @@ BYTE    Bus_4,      Bus_Out,    Bus_Nowhere,    0
 BYTE    Bus_Zero,   Bus_Nowhere,Bus_4,          0
 BYTE    Bus_6,      Bus_4,      Bus_Nowhere,    0
 BYTE    Bus_6,      Bus_nowhere,Bus_6,          0
-' Algorithm 8
 {{
+ Algorithm 8
   4=|
   | |
 2 3=|
@@ -623,8 +623,8 @@ BYTE    Bus_Zero,   Bus_Nowhere,Bus_4,          0
 BYTE    Bus_6,      Bus_4,      Bus_5,          0
 BYTE    Bus_5,      Bus_nowhere,Bus_6,          0
 
-' Algorithm 9
 {{
+ Algorithm 9
 3
 |
 2 4*
@@ -641,8 +641,8 @@ BYTE    Bus_4,      Bus_Out,    Bus_Nowhere,    0
 BYTE    Bus_5,      Bus_Nowhere,Bus_4,          0
 BYTE    Bus_Zero,   Bus_Nowhere,Bus_5,          0
 BYTE    Bus_7,      Bus_4,      Bus_7,          0
-' Algorithm 10
 {{
+ Algorithm 10
 3 4*
 |=|
   2
@@ -659,8 +659,8 @@ BYTE    Bus_4,      Bus_Out,    Bus_Nowhere,    0
 BYTE    Bus_5,      Bus_Nowhere,Bus_4,          0
 BYTE    Bus_Zero,   Bus_Nowhere,Bus_5,          0
 BYTE    Bus_7,      Bus_5,      Bus_7,          0
-' Algorithm 11
 {{
+ Algorithm 11
 4*
 |
 3
@@ -679,8 +679,8 @@ BYTE    Bus_4,      Bus_Out,    Bus_Nowhere,    0
 BYTE    Bus_5,      Bus_Nowhere,Bus_4,          0
 BYTE    Bus_6,      Bus_Nowhere,Bus_5,          0
 BYTE    Bus_6,      Bus_Nowhere,Bus_6,          0
-' Algorithm 12
 {{
+ Algorithm 12
 4=|
 | |
 3 |

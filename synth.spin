@@ -65,13 +65,13 @@ VAR
     BYTE    LastVoice_                          ' last voice allocated
     
 PUB Main | scopePtr, i, j
-{{
+{
 Main loop of everything
 after setting up the UI, do things in this order:
 1- process MIDI messages until the receiver is drained
 2- advance voices
 3- service UI
-}}
+}
     midi.Start(MIDI_Pin)
 
     ' 4 oscillator cogs
@@ -166,37 +166,37 @@ after setting up the UI, do things in this order:
     repeat
 
 PRI PatchParamPtr(P)
-{{
+{
 returns word pointer for patch parameter
-}}
+}
     return @Patch_[P]
     
 PRI PatchOscParamPtr(Op, P)
-{{
+{
 returns word pointer for operator parameter
-}}
+}
     return PatchParamPtr(P + v#Patch_Op + v#Patch_Osc + v#Patch_OpWords * Op)
     
 PRI PatchEnvParamPtr(Op, P)
-{{
+{
 returns word pointer for envelope parameter
-}}
+}
     return PatchParamPtr(P + v#Patch_Op + v#Patch_Env + v#Patch_OpWords * Op)
 
 PRI KnobValue(Control) | shift
-{{
+{
 returns rotational value for Control (range 0-2)
-}}
+}
     shift := Knob_BasePin + (Control << 1)
     return (INA & ($3 << shift)) >> shift
     
 PRI OnKnob(New, Old, Control) | b0, b1, button
-{{
+{
 action when rotational value has changed
 New: 0-3
 Old: 0-3
 Control: 0-2
-}}
+}
     b0 := (Old ^ (New >> 1)) & 1        ' relative old value
     b1 := (New ^ (Old >> 1)) & 1        ' relative new value
 
@@ -251,9 +251,9 @@ Control: 0-2
     return New
 
 PRI OnSavePatch(PatchNum) | okay
-{{
+{
 Save the selected patch
-}}
+}
     ui.SetStatus(String("Saving"))
     ' free up a cog for the flash driver
     midi.Stop
@@ -273,9 +273,9 @@ Save the selected patch
         ui.SetStatus(String("FLASH WRITE FAILED"))
 
 PRI OnLoadPatch(PatchNum) | okay
-{{
+{
 Load a patch
-}}
+}
     ui.SetStatus(String("Loading"))
     ' free up a cog for the flash driver
     midi.Stop
@@ -300,9 +300,9 @@ Load a patch
         
 
 PRI OnSwapPatch | w, n
-{{
+{
 Swap patch with alternate values (initially the loaded ones)
-}}
+}
     repeat w from 0 to v#Patch_Words-1
         n := Patch_[w]
         Patch_[w] := PatchSwap_[w]
@@ -312,23 +312,23 @@ Swap patch with alternate values (initially the loaded ones)
     Dirty_ := TRUE ' could be smarter here
 
 PRI OnOperatorChange(Sel) | i
-{{
+{
 Selected operator has changed, so update the UI pointers to its parameters
-}}
+}
     repeat i from 0 to v#Patch_OscWords - 1
         ui.PointItem(OperatorUI_ + i + 1, PatchOscParamPtr(Sel, i))
 
 PRI OnEnvelopeChange(Sel) | i
-{{
+{
 Selected envelope has changed, so update the UI pointers to its parameters
-}}
+}
     repeat i from 0 to v#Patch_EnvWords - 1
         ui.PointItem(EnvelopeUI_ + i + 1, PatchEnvParamPtr(Sel, i))
 
 PRI OnCopyEnvelope | i, j
-{{
+{
 Copy selected envelope parameters to all the other envelopes
-}}
+}
     repeat i from 0 to v#Patch_Ops-1
         if i <> EnvelopeSel_
             repeat j from 0 to v#Patch_EnvWords-1
@@ -336,11 +336,11 @@ Copy selected envelope parameters to all the other envelopes
 
 
 PRI OnMidi(M)
-{{
+{
 Received MIDI message
 Messages come from the receiver as longs, more significant bytes recieved first
 The 3 byte messages we currently care about look like, say, (note down << 16) | (key << 8) | velocity
-}}
+}
     '* TODO: midi channels and config
 
     case M >> 20
@@ -357,9 +357,9 @@ The 3 byte messages we currently care about look like, say, (note down << 16) | 
             OnPitchBend(((M & $7f) << 7) | ((M >> 8) & $7f))
 
 PRI OnNoteOn(Key, Velocity) | i
-{{
+{
 Key down
-}}
+}
     if Velocity == 0
         ' some devices send key down with 0 velocity for key up
         OnNoteOff(Key)
@@ -372,20 +372,20 @@ Key down
     v[i].Down(Key, Velocity)
 
 PRI OnNoteOff(Key) | i
-{{
+{
 Key up
 
 velocity information for key up is ignored
-}}
+}
     repeat i from 0 to 7
         if v[i].Key == Key
             v[i].Up
             return
 
 PRI OnControlChange(Control, Value)
-{{
+{
 Control change
-}}
+}
     case Control
         $01:
             OnWheel(Value)
@@ -394,33 +394,33 @@ Control change
             OnPedal(Value)
 
 PRI OnPitchBend(Value)
-{{
+{
 Pitch wheel update
 Value reported is +/- $1000 * octave, where octave can be fractional. e.g., a half octave range up would be $0800
-}}
+}
     if Value > $2000
         ++Value
     Value -= $2000
     Bend_ := (Value * WORD[PatchParamPtr(v#Patch_BendRange)]) ~> 5
 
 PRI OnWheel(Value)
-{{
+{
 Modulation wheel update
 Leave the new value to be picked up later
-}}
+}
     Wheel_ := Value
 
 PRI OnPedal(Value)
-{{
+{
 Sustain pedal update
 Leave the new value to be picked up later
-}}
+}
     Pedal_ := Value
 
 PRI FindVoiceForKey(Key) | i, j
-{{
+{
 Allocate a voice to handle playing a note
-}}
+}
     ' first, check for any existing voices already playing/having played it
     repeat i from 0 to 7
         if v[i].Key == Key
