@@ -170,7 +170,6 @@ line
     '* Character Tiles
     '*
     mov ch, #25                             ' 25 columns of text
-    mov co, #6                              ' 6 columns of operator display
 :text
     rdword t, tptr                          ' character tile base address
     shl t, #6                               ' as upper six bits of memory
@@ -321,7 +320,6 @@ r1              res     1
 r2              res     1
 cv              res     1
 ch              res     1
-co              res     1
 tptr            res     1
 sptr            res     1
 gptr            res     1
