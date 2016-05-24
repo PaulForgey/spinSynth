@@ -220,6 +220,9 @@ PRI SetFrequency(Op, F)
 {
 Set oscillator Op to frequency F (which is actually a 16 bit value)
 }
+    ' if we're going at or above Nyquist, be silent instead
+    if F > $ffff
+        F := 0
     LONG[VoicePtr_][Op * 4] := F
 
 ' patch accessors
