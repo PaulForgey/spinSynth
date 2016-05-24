@@ -1,4 +1,6 @@
+DEVICE=cu.usbserial-A4004exd
 SPIN=/usr/local/bin/openspin
+PROPMAN=/usr/local/bin/propman
 PYTHON=/usr/bin/python
 TARGET=synth
 
@@ -17,6 +19,12 @@ DEPS=\
 	synth.osc.tables.spin
 
 all: $(TARGET).binary
+
+install: all
+	$(PROPMAN) --device $(DEVICE) $(TARGET).binary
+
+burn: all
+	$(PROPMAN) --device $(DEVICE) -w $(TARGET).binary
 
 $(TARGET).binary:: $(DEPS)
 	$(SPIN) $(TARGET).spin
