@@ -12,7 +12,7 @@ CON
     Type_Bool           = 3 ' yes or no
     Type_Op             = 4 ' Op 1-4
     Type_Detune         = 5 ' detuning from -256 to 255 scaled from $1ff to $ff
-    Type_Feedback       = 6 ' 0-16 with value being 16-displayed
+    Type_Feedback       = 6 ' 0-19 with value being 19-displayed
     Type_Algo           = 7 ' algorithm selection, which also updates graphical drawing
     Type_Button         = 8 ' button with no displayed value, activated on adjust(1)
     Type_Combo          = 9 ' button with displayed 9 bit hex value, activated on adjust(1), adjusted in units on adjust(-$10 or $10)
@@ -267,7 +267,7 @@ Limit a proposed new value according to type
             maxValue := 3
 
         Type_Feedback:
-            maxValue := 16
+            maxValue := 19
     
         Type_Algo:
             maxValue := 11
@@ -458,14 +458,14 @@ PRI DisplayFeedback(V)
 {
 Type_Feedback::Display
 }
-    FormatNumber(@DisplayStr_[0], 16 - V, 4, 10, " ")
+    FormatNumber(@DisplayStr_[0], 19 - V, 4, 10, " ")
     
 PRI AdjustFeedback(V, D)
 {
 Type_Feedback::Adjust
 }
     if (D == -$10)
-        V := 16
+        V := 19
     elseif (D == $10)
         V := 0
     else

@@ -89,7 +89,7 @@ entry
     mins out, low                           ' clamp
     maxs out, high
 
-    shl out, #13                            ' scale 18 bit sample value
+    shl out, #11                            ' scale 21 bit sample value
     xor out, sign                           ' convert signed -x,x to unsigned 0,2x
     mov FRQA, out                           ' set output
     waitcnt tclk, fsclk                     ' wait fs period
@@ -131,8 +131,8 @@ sign            long    $80000000
 fsclk           long    1814
 pos             long    0
 
-low             long    $fffc_0000
-high            long    $0003_ffff
+low             long    $ffe0_0000
+high            long    $001f_ffff
 
 s_480           long    480
     

@@ -23,7 +23,7 @@ CON
     
 VAR
     LONG    Cog_
-    LONG    Params_[9]
+    LONG    Params_[8]
 
     LONG    Profile_                                    ' updated with -clock count per pass
     BYTE    Trigger_                                    ' set to non-0 to trigger output, non-LSB specifies offset within buffer
@@ -50,7 +50,7 @@ return number of clock cycles per last frame redered
 }
     return -Profile_
 
-PUB Start(InputsPtr, AlgoPtr, FeedbackPtr)
+PUB Start(InputsPtr, AlgoPtr, FeedbackPtr) | o
 {
 start an oscillator cog
 InputsPtr:  long pointer to 32 longs (4 values per 8 oscillators)
@@ -59,15 +59,17 @@ FeedbackPtr:byte pointer to feedback shift value, higher is lower, 16 turns it o
 }
     Stop
 
+    repeat o from 0 to 7
+        LONG[InputsPtr][1+o*4] := $8800 << 15 + $100 ' start silent
+
     Params_[0] := InputsPtr
     Params_[1] := AlgoPtr
     Params_[2] := FeedbackPtr
     Params_[3] := tables.SinesPtr
-    Params_[4] := tables.ExpsPtr
-    Params_[5] := @Algs
-    Params_[6] := @Output_
-    Params_[7] := @Trigger_
-    Params_[8] := @Profile_
+    Params_[4] := @Algs
+    Params_[5] := @Output_
+    Params_[6] := @Trigger_
+    Params_[7] := @Profile_
 
     return (Cog_ := cognew(@entry, @Params_) + 1)
     
@@ -91,8 +93,6 @@ entry
     rdlong feedback_ptr, r0
     add r0, #4
     rdlong sine_ptr, r0
-    add r0, #4
-    rdlong alog_ptr, r0
     add r0, #4
     rdlong algs_ptr, r0
     add r0, #4
@@ -293,34 +293,44 @@ oscillator
     cmpsub level, minus_one             ' level = (level - env) / 64
     add env, level                      ' env += level
     
-    shl mod, #3                         ' scale input
+    shl mod, #1                         ' scale input
     add r0, mod                         ' modulate
 
     wrlong env, input                   ' write back updated envelope
-    add input, #4
 
-    shr env, #15                        ' scale envelope
-    xor env, env_mask
+    add input, #4
+    shr env, #14                        ' scale envelope
 
     shr r0, #4                          ' whole number t
     test r0, half wc                    ' sign into carry
+
     test r0, quarter wz                 ' odd half into z
     if_nz xor r0, quarter_mask
+
     and r0, quarter_mask
     add r0, sine_ptr                    ' sine table
-    ' [nop]
+
     rdword r0, r0                       ' r0=log(sin(r0))
+
+    shl r0, #1                          ' word offset
     add env, r0                         ' exp of sine+env
+
     mov r0, env
     and r0, quarter_mask                ' fractional exponent
+
+    xor r0, quarter_mask                ' which is negative
     add r0, alog_ptr
-    shr env, #12                        ' whole exponent
-    ' [nop]
+
     rdword r0, r0                       ' r0=alog(r0)
-    shr r0, env
+
+    or r0, bit16                        ' whole part
+    shr env, #12                        ' whole exponent
+    max env, #31
+    shr r0, env                         ' into the right power of 2
     negc r0, r0                         ' finally, restore sign
+
 oscillator_ret
-    ret
+    ret                                 ' r0 has an 18 bit sample value
 
 '*
 '* Switch Algorithm
@@ -433,12 +443,15 @@ nowhere         long    0               ' write only, discard
 out             long    0               ' audio bus output
 bus             long    0[8]            ' general purpose modulation paths
 
+alog_ptr        long    $d000
+
 quarter         long    $0800 << 1
 quarter_mask    long    $07ff << 1
 half            long    $1000 << 1
 period          long    $2000 << 1
 env_mask        long    $7fff << 1
 minus_one       long    $ffff_ffff
+bit16           long    $0001_0000
 alg             long    0
 fb3             long    0               ' smoothing buffer for osc3 feedback
 fb7             long    0               ' smoothing buffer for osc7 feedback
@@ -449,7 +462,6 @@ input_ptr       res     1               ' frequency, level, 0, envelope (4 longs
 alg_ptr         res     1
 feedback_ptr    res     1
 sine_ptr        res     1
-alog_ptr        res     1
 algs_ptr        res     1
 output_ptr      res     1
 sync_ptr        res     1

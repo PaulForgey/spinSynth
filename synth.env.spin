@@ -5,6 +5,9 @@ Copyright (c)2016 Paul Forgey
 See end of file for terms of use
 }}
 
+CON
+    Env_Max     = $3_ffff
+
 VAR
     LONG    OscPtr_         ' long pointer to oscillator parameters
     LONG    EnvPtr_         ' word pointer to envelope: (rate,level) *4, entering 4th when key released +1 bool (looping)
@@ -16,7 +19,7 @@ VAR
     LONG    Clk_            ' system clock at start of transition
     LONG    LastT_          ' system clock as last checked, upper 16 bits masked in
     WORD    Scale_          ' scale of entire envelope
-    BYTE    State_          ' envelope state (0-4, 0=L1..3=L4, 4=L4 finished)
+    BYTE    State_          ' envelope state (0-5, 0=Init, 1=L1..4=L4, 5=L4 finished)
     BYTE    Wheel_          ' modulation wheel state
 
 PUB Init(OscPtr, EnvPtr)
@@ -28,18 +31,19 @@ EnvPtr: word pointer to envelope
     OscPtr_ := OscPtr
     EnvPtr_ := EnvPtr
     Duration_ := 1
-    LastT_ := -1
     
 PRI EnvRate(S)
 {
 Configured Rate, 0-$1ff
 }
+    S := (S - 1) #> 0
     return WORD[EnvPtr_][(S << 1)]
 
 PRI EnvLevel(S)
 {
 Configured Level, 0-$1ff
 }
+    S := (S - 1) #> 0
     return WORD[EnvPtr_][(S << 1) | 1]
     
 PRI Looping
@@ -51,24 +55,16 @@ Loop L3->L2, Boolean
 PRI SetLevel(L) | e, f
 {
 Set effective oscillator output level with log2 scaling
-L: 31 bit value 0-$7fff_ffff, although only bits 31-16 are actually significant
-
-The oscillator uses 32 bit unsigned values to facilitate gradual per-sample movements
+L: 0,Env_Max
 }
-
-    ' limit to 31 bit unsigned
-    if L < 0
-        L := $7fff_ffff
+    L <#= Env_Max
     ' make note of where we are at
     Env_ := L
-    ' add modulation wheel, which is a 7-bit value, scaled to upper bits
-    L += Wheel_ << 24
-    ' again limit to 31 bit unsigned
-    if L < 0
-        L := $7fff_ffff
+    ' add modulation wheel, but do not add this to persistent state
+    L := (L + Wheel_ << 11) <# Env_Max
 
     ' only look at 15 MSBs
-    L >>= 16
+    L >>= 3
     e := >|L
 
     ' 11 next most significant bits for lookup
@@ -76,24 +72,31 @@ The oscillator uses 32 bit unsigned values to facilitate gradual per-sample move
         L >>= e - 12
     else
         L <<= (12 - e)
-    ' and scale this whole mess back to bits 31-11 (of which only are 31-16 ultimately used)
-    LONG[OscPtr_][1] := ((WORD[$c000][L & $7ff]) | (e << 16)) << 11
+    L := (e << 16) | WORD[$c000][L & $7ff]
+
+    ' at this point, we are in range 0-$f_ffff, minimum value $1_0000. Scale it to 0-$8800 and invert
+    ' shift to the goofy bit arrangement needed by the oscillator (starting from 31 down), and add an
+    ' extra $100 to the final result 
+    L := (((L ^ $f_ffff) * $880) + $1000) >> 1
+
+    LONG[OscPtr_][1] := L
 
 PRI Transition(S) | rate
 {
 Transiation state S:
-0- L1
-1- L2
-2- L3
-3- L4
-4- L4+1 (done)
+0- Key down
+1- L1
+2- L2
+3- L3
+4- L4
+5- L4+1 (done)
 }
     Clk_ := CNT     ' system clock at start of transition
     State_ := S     ' new state
     Base_ := Env_   ' level coming from
 
-    if S < 4 ' do nothing for state 4
-        Delta_ := ((EnvLevel(S) * Scale_) << 13) - Base_
+    if S < 5 ' do nothing for state 5
+        Delta_ := (EnvLevel(S) * Scale_) - Base_
         rate := $200 - EnvRate(S)
         Duration_ := ((rate * rate) >> 3) #> 1
     
@@ -101,7 +104,7 @@ Transiation state S:
 
 PUB State
 {
-Current state 0-4
+Current state 0-5
 }
     return State_
 
@@ -121,9 +124,9 @@ Enter key down state with scale 0-$200 (usually 0-$1ff) by transitioning to stat
     
 PUB Up
 {
-Enter key-up state by transitioning to state 3
+Enter key-up state by transitioning to state L4
 }
-    Transition(3)
+    Transition(4)
     
 PUB Advance | t, d, l
 {
@@ -134,10 +137,12 @@ completion of state 3 -> 4
 state 4 is terminal
 within this scope, state 2 is also terminal if not looping. Regarless, state 3 needs an explicit transition
 }
-    if (State < 4) ' do nothing for state 4
+    if (State_ < 5) ' do nothing for state 5
         t := CNT - Clk_                                     ' measure elapsed time
         
-        if (t & $ffff_0000) <> LastT_                       ' within the resolution we care about, update if different
+        if (State_ == 0 OR t & $ffff_0000) <> LastT_        ' within the resolution we care about, update if different
+            if (State_ == 0)
+                State_ := 1
             LastT_ := t & $ffff_0000                        ' make note of current time
     
             t <#= (Duration_ << 16)                         ' limit elapsed time to duration
@@ -148,17 +153,17 @@ within this scope, state 2 is also terminal if not looping. Regarless, state 3 n
                 if Delta_ < 0
                     l := 0
                 else
-                    l := $7fff_ffff
+                    l := Env_Max
                     
             SetLevel(l)                                     ' set the new level
     
             if (t => (Duration_ << 16))                     ' if we have elapsed duration, possible state change
-                if (State_ < 2)                             ' 0 -> 1, 1-> 2
+                if (State_ < 3)                             ' L1 -> L2, L2 -> L3
                     Transition(State_ + 1)
-                elseif (State_ == 2 AND Looping)            ' 2 -> 1 only if looping
-                    Transition(1)
-                elseif (State_ == 3)
-                    Transition(4)                           ' 3 -> 4
+                elseif (State_ == 3 AND Looping)            ' L3 -> L2 only if looping
+                    Transition(2)
+                elseif (State_ == 4)
+                    Transition(5)                           ' L4 -> Done
 
 {{
                             TERMS OF USE: MIT License                                                           

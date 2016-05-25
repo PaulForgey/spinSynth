@@ -27,34 +27,26 @@
 import math
 import sys
 
-def round(n):
-    m = math.modf(n)
-    n = int(m[1])
-    if m[0] >= 0.5:
-        n += 1
-
-    return int(n)
-
 def sin(n):
-    n = round(math.sin(n / 4096.0 * math.pi) * 16384.0)
-    if n > 0x3fff:
-        n = 0x3fff
+    n = int(round(math.sin(n / 4096.0 * math.pi) * 65536.0, 0))
+    if n > 0xffff:
+        n = 0xffff
     return n
 
 def log(n):
     if n > 0:
-        n = math.log(n / 16384.0) / math.log(2.0)
-        n = -round(n * 2048.0)
-        n = n & 0x7fff
+        n = math.log(n / 65536.0) / math.log(2.0)
+        n = -int(round(n * 2048.0, 0))
+        n = n & 0xffff
     else:
-        n = 0x7fff
+        n = 0xffff
     return n
 
 def alog(n):
     n = math.pow(2.0, (n / 2048.0)) - 1.0
-    n = round(n * 16384.0)
-    if n > 0x3fff:
-        n = 0x3fff
+    n = int(round(n * 65536.0, 0))
+    if n > 0xffff:
+        n = 0xffff
     return n
 
 def sines():
@@ -64,26 +56,8 @@ def sines():
         sys.stdout.write("WORD ")
 
         for y in range(0, 0x20):
-            n = log(sin(x+y)) << 1
+            n = log(sin(x+y))
 
-            sys.stdout.write(str(n))
-
-            if y < 0x1f:
-                sys.stdout.write(",")
-            else:
-                sys.stdout.write(" \'" + hex(x) + "\n")
-
-    print
-
-
-def exps():
-    print ("Exps")
-
-    for x in range(0, 0x800, 0x20):
-        sys.stdout.write("WORD ")
-
-        for y in range(0, 0x20):
-            n = alog((x+y) ^ 0x7ff) | 0x4000
             sys.stdout.write(str(n))
 
             if y < 0x1f:
@@ -101,13 +75,8 @@ def tables():
     print "PUB SinesPtr"
     print "    return @Sines"
     print
-    print "PUB ExpsPtr"
-    print "    return @Exps"
-    print
     print "DAT"
     sines()
-    exps()
-
 
 def sinewave(e):
     for x in range(0, 0x2000):
@@ -115,19 +84,12 @@ def sinewave(e):
         if (x & 0x800):
             n = n ^ 0x7ff
         n = log(sin(n)) + e
-        y = alog((n & 0x7ff) ^ 0x7ff) | 0x4000
+        y = alog((n & 0x7ff) ^ 0x7ff) | 0x10000
         n >>= 11
         y >>= n
         if (x & 0x1000):
             y = -y
         print y
-
-
-def sinewave2():
-    for x in range(0, 0x2000):
-        y = round(math.sin(x / 4096.0 * math.pi) * 32767.0)
-        print y
-
 
 tables()
 
