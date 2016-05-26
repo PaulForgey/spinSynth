@@ -180,10 +180,10 @@ V:  Velocity $01-$7f
         Frequency_[Op] := n         ' bendable frequency
         SetFrequency(Op, BentFrequencyForIndex(Op, n)) ' set the acutal frequency
 
-    ' velocity scale the envelope (in a very crappy way)
+    ' velocity scale the envelope (todo: this better)
     V := $7F - V
     n := Level(Op)
-    s := $200 - ((V * V * Velocity(Op)) >> 14)
+    s := $200 - ((V * Velocity(Op)) >> 7)
     n := (n * s) >> 9
 
     env[Op].Down(n)                 ' enter key-down state
@@ -228,19 +228,19 @@ Set oscillator Op to frequency F (which is actually a 16 bit value)
 ' patch accessors
 PRI Level(Op)
 {
-Configured level, 0-$1ff
+Configured level, 0-$200
 }
     return WORD[PatchPtr_][Patch_Op + Patch_OpWords * Op + Patch_Level]
 
 PRI Velocity(Op)
 {
-Configured velocity sensitivity, 0-$1ff
+Configured velocity sensitivity, 0-$200
 }
     return WORD[PatchPtr_][Patch_Op + Patch_OpWords * Op + Patch_Velocity]
 
 PRI WheelSense(Op)
 {
-Modulation wheel sensitivity, 0-$1ff
+Modulation wheel sensitivity, 0-$200
 }
     return WORD[PatchPtr_][Patch_Op + Patch_OpWords * Op + Patch_Wheel]
     

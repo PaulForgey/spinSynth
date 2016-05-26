@@ -7,7 +7,7 @@ See end of file for terms of use
 
 CON
     Type_Raw            = 0 ' 9 bit hex value
-    Type_Pct            = 1 ' 00-99 scaled from 0-$1ff
+    Type_Pct            = 1 ' 00-99 scaled from 0-$200
     Type_Freq           = 2 ' frequency value as multiplier or fixed
     Type_Bool           = 3 ' yes or no
     Type_Op             = 4 ' Op 1-4
@@ -272,8 +272,11 @@ Limit a proposed new value according to type
         Type_Algo:
             maxValue := 11
 
-        other:
+        Type_Detune:
             maxValue := $1ff
+
+        other:
+            maxValue := $200
             
     Value <#= maxValue
     Value #>= minValue
@@ -351,7 +354,7 @@ Type_Pct::Adjust
     
     if V <> 0
         if V => 99
-            V := $1ff
+            V := $200
         else
             V := (V * 10) + 5
             V := (V * 512) / 1000

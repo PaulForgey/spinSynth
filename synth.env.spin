@@ -34,14 +34,14 @@ EnvPtr: word pointer to envelope
     
 PRI EnvRate(S)
 {
-Configured Rate, 0-$1ff
+Configured Rate, 0-$200
 }
     S := (S - 1) #> 0
     return WORD[EnvPtr_][(S << 1)]
 
 PRI EnvLevel(S)
 {
-Configured Level, 0-$1ff
+Configured Level, 0-$200
 }
     S := (S - 1) #> 0
     return WORD[EnvPtr_][(S << 1) | 1]
@@ -52,7 +52,7 @@ Loop L3->L2, Boolean
 }
     return WORD[EnvPtr_][8] <> 0
 
-PRI SetLevel(L) | e, f
+PRI SetLevel(L, W) | e, f
 {
 Set effective oscillator output level with log2 scaling
 L: 0,Env_Max
@@ -60,8 +60,8 @@ L: 0,Env_Max
     L <#= Env_Max
     ' make note of where we are at
     Env_ := L
-    ' add modulation wheel, but do not add this to persistent state
-    L := (L + Wheel_ << 11) <# Env_Max
+    ' add modulation wheel (unless state 5), but do not add this to persistent state
+    L := (L + W << 11) <# Env_Max
 
     ' only look at 15 MSBs
     L >>= 3
@@ -95,12 +95,12 @@ Transiation state S:
     State_ := S     ' new state
     Base_ := Env_   ' level coming from
 
-    if S < 5 ' do nothing for state 5
+    if S < 5
         Delta_ := (EnvLevel(S) * Scale_) - Base_
         rate := $200 - EnvRate(S)
         Duration_ := ((rate * rate) >> 3) #> 1
-    
-        Advance     ' start first idle advance to update with new state
+    else
+        SetLevel(Env_, 0)
 
 PUB State
 {
@@ -113,20 +113,26 @@ PUB SetWheel(W)
 Set modulation wheel value, 0-$7f
 }
     Wheel_ := W
-    SetLevel(Env_)
+
+    if State_ < 5
+        SetLevel(Env_, W)
+    else
+        SetLevel(Env_, 0)
 
 PUB Down(Scale)
 {
-Enter key down state with scale 0-$200 (usually 0-$1ff) by transitioning to state 0
+Enter key down state with scale 0-$200 (usually 0-$200) by transitioning to state 0
 }
     Scale_ := Scale
     Transition(0)
+    Advance
     
 PUB Up
 {
 Enter key-up state by transitioning to state L4
 }
     Transition(4)
+    Advance
     
 PUB Advance | t, d, l
 {
@@ -155,7 +161,7 @@ within this scope, state 2 is also terminal if not looping. Regarless, state 3 n
                 else
                     l := Env_Max
                     
-            SetLevel(l)                                     ' set the new level
+            SetLevel(l, Wheel_)                             ' set the new level
     
             if (t => (Duration_ << 16))                     ' if we have elapsed duration, possible state change
                 if (State_ < 3)                             ' L1 -> L2, L2 -> L3
