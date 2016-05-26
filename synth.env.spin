@@ -57,7 +57,7 @@ PRI SetLevel(L, W) | e, f
 Set effective oscillator output level with log2 scaling
 L: 0,Env_Max
 }
-    L <#= Env_Max
+    L #>= 0
     ' make note of where we are at
     Env_ := L
     ' add modulation wheel (unless state 5), but do not add this to persistent state
@@ -146,21 +146,16 @@ within this scope, state 2 is also terminal if not looping. Regarless, state 3 n
     if (State_ < 5) ' do nothing for state 5
         t := CNT - Clk_                                     ' measure elapsed time
         
-        if (State_ == 0 OR t & $ffff_0000) <> LastT_        ' within the resolution we care about, update if different
+        if (State_ == 0) OR ((t & $ffff_0000) <> LastT_)    ' within the resolution we care about, update if different
             if (State_ == 0)
                 State_ := 1
             LastT_ := t & $ffff_0000                        ' make note of current time
     
             t <#= (Duration_ << 16)                         ' limit elapsed time to duration
             d := t / Duration_                              ' compute t*(rise/run) we should be at for this t
-            l := Base_ + (Delta_ ~> 16) * d                 ' base+t*(rise/run)
+            l := ((Delta_ ~> 4) * d) ~> 12                  ' base+t*(rise/run)
+            l := Base_ + l
 
-            if l < 0                                        ' limit to 0 or full depending if going up or down
-                if Delta_ < 0
-                    l := 0
-                else
-                    l := Env_Max
-                    
             SetLevel(l, Wheel_)                             ' set the new level
     
             if (t => (Duration_ << 16))                     ' if we have elapsed duration, possible state change
