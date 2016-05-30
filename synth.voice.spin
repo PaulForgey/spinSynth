@@ -9,8 +9,10 @@ CON
     Patch_Feedback          = 0             ' global
     Patch_Algorithm         = 1
     Patch_BendRange         = 2
+    Patch_Cutoff            = 3
+    Patch_Resonance         = 4
 
-    Patch_Op                = 3             ' offset to first operator
+    Patch_Op                = 5             ' offset to first operator
 
     Patch_Osc               = 0             ' offset inside operator to oscillator
     Patch_OscWords          = 5

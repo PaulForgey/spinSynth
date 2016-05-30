@@ -6,7 +6,7 @@ See end of file for terms of use
 }}
 
 CON
-    Type_Raw            = 0 ' 9 bit hex value
+    Type_Raw            = 0 ' hex value 0-$200
     Type_Pct            = 1 ' 00-99 scaled from 0-$200
     Type_Freq           = 2 ' frequency value as multiplier or fixed
     Type_Bool           = 3 ' yes or no
@@ -214,9 +214,6 @@ Update display of field's value
     v := WORD[ParamPtrs_[Line]] ' get value
 
     case ParamTypes_[Line]      ' display according to type into DisplayStr_ buffer
-        Type_Raw:
-            DisplayRaw(v)
-
         Type_Pct:
             DisplayPct(v)
 
@@ -243,6 +240,9 @@ Update display of field's value
 
         Type_Combo:
             DisplayCombo(v)
+
+        other:
+            DisplayRaw(v)
 
     if ParamEnable_[Line]       ' color is white or gray depending if enabled
         c := 0
@@ -306,8 +306,7 @@ PRI DisplayRaw(V) | l
 {
 Type_Raw::Display
 }
-    FormatNumber(@DisplayStr_[0], V, 3, 16, "0")
-    DisplayStr_[3] := " "
+    FormatNumber(@DisplayStr_[0], V, 4, 16, " ")
     
 PRI AdjustOne(V, D)
 {
@@ -493,7 +492,7 @@ PRI DisplayCombo(V)
 {
 Type_Combo::Display
 }
-    FormatNumber(@DisplayStr_[0], V, 3, $10, "0")
+    FormatNumber(@DisplayStr_[0], V, 3, $10, " ")
     DisplayStr_[3] := 7
 
 PRI FormatNumber(StringPtr, V, Digits, Base, Fill) | n, d, p

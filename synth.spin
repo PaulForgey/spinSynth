@@ -42,6 +42,8 @@ VAR
     WORD    Waste_                              ' buttons annoyingly need to point to a value
     WORD    PatchStartUI_                       ' controls => this value affect the patch
     WORD    PatchEndUI_                         ' controls < this value affect the patch
+    WORD    CutoffUI_                           ' LPF cutoff control
+    WORD    ResonanceUI_                        ' LPF resonance control
 
     ' State read from keyboard and then picked up after in non-MIDI loop
     BYTE    Pedal_                              ' control $40 value
@@ -109,6 +111,8 @@ after setting up the UI, do things in this order:
     ui.BeginGroup(String("Voice"))
     PatchStartUI_ := ui.GroupItem(String("Algorithm"), PatchParamPtr(v#Patch_Algorithm), ui#Type_Algo)
     ui.GroupItem(String("Feedback"), PatchParamPtr(v#Patch_Feedback), ui#Type_Feedback)
+    CutoffUI_ := ui.GroupItem(String("Low Pass"), PatchParamPtr(v#Patch_Cutoff), ui#Type_Raw)
+    ResonanceUI_ := ui.GroupItem(String("Resonance"), PatchParamPtr(v#Patch_Resonance), ui#Type_Raw)
     ui.GroupItem(String("Pitch Bend"), PatchParamPtr(v#Patch_BendRange), ui#Type_Raw)
     ui.EndGroup
     ui.BeginGroup(String("Operators"))
@@ -238,6 +242,10 @@ Control: 0-2
         EnvelopeUI_:
             OnEnvelopeChange(EnvelopeSel_)
 
+        CutoffUI_, ResonanceUI_:
+            OnFilter
+            Dirty_ := TRUE
+
         other:
             ' activity elsewhere soils the patch
             if button => PatchStartUI_ AND button < PatchEndUI_
@@ -292,6 +300,8 @@ Load a patch
         LoadPatchNum_ := PatchNum
         ' update the UI with new values
         ui.Refresh
+        ' update LPF
+        OnFilter
         ' not dirty
         Dirty_ := FALSE
         ui.SetStatus(String(" "))
@@ -309,6 +319,7 @@ Swap patch with alternate values (initially the loaded ones)
         PatchSwap_[w] := n
 
     ui.Refresh
+    OnFilter
     Dirty_ := TRUE ' could be smarter here
 
 PRI OnOperatorChange(Sel) | i
@@ -334,6 +345,13 @@ Copy selected envelope parameters to all the other envelopes
             repeat j from 0 to v#Patch_EnvWords-1
                 WORD[PatchEnvParamPtr(i, j)] := WORD[PatchEnvParamPtr(EnvelopeSel_, j)]
 
+PRI OnFilter | c, r
+{
+Update LPF
+}
+    c := WORD[PatchParamPtr(v#Patch_Cutoff)] << 2
+    r := WORD[PatchParamPtr(v#Patch_Resonance)] << 1
+    out.SetFilter(c, r)
 
 PRI OnMidi(M)
 {
