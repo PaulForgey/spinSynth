@@ -345,13 +345,18 @@ Copy selected envelope parameters to all the other envelopes
             repeat j from 0 to v#Patch_EnvWords-1
                 WORD[PatchEnvParamPtr(i, j)] := WORD[PatchEnvParamPtr(EnvelopeSel_, j)]
 
-PRI OnFilter | c, r
+PRI OnFilter | c, r, e
 {
 Update LPF
 }
-    c := WORD[PatchParamPtr(v#Patch_Cutoff)] << 2
+    c := WORD[PatchParamPtr(v#Patch_Cutoff)]
     r := WORD[PatchParamPtr(v#Patch_Resonance)] << 1
-    out.SetFilter(c, r)
+
+    e := WORD[$d000][(c & $3f) << 5] | $1_0000      ' turn 0-$200 range into 8 octave exponential
+    c >>= 6                                         ' c becomes octave (non fractional part of exponent)
+    e >>= 5 + (8 - c)                               ' shift it down to range 0-$800
+
+    out.SetFilter(e, r)
 
 PRI OnMidi(M)
 {

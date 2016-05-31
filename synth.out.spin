@@ -13,7 +13,8 @@ VAR
     LONG    Params_[7]
 
     LONG    Profile_
-    LONG    Filter_[3]              ' one stage of Butterworth filter coefficients (gain, b0, b1)
+    LONG    Filter_[6]              ' one stage of Butterworth filter coefficients (gain, b0, b1) (x2 for atomic swap)
+    LONG    FilterPtr_
     BYTE    Scope_[480]             ' oscilliscope date
     
 PUB Start(PinNum, InputsPtr, TriggersPtr, NumInputs)
@@ -29,13 +30,17 @@ NumInput:       array size of InputsPtr and TriggersPtr
     Filter_[0] := 1 << 13               ' gain = 1.0
     Filter_[1] := 2 << 13               ' b0 = 2.0
     Filter_[2] := 1 << 13               ' b1 = 1.0 (cutoff = fs/2; no effective filter)
+    Filter_[3] := Filter_[0]
+    Filter_[4] := Filter_[1]
+    Filter_[5] := Filter_[2]
+    FilterPtr_ := @Filter_[0]
 
     Params_[0] := PinNum
     Params_[1] := InputsPtr
     Params_[2] := TriggersPtr
     Params_[3] := NumInputs
     Params_[4] := @Profile_
-    Params_[5] := @Filter_
+    Params_[5] := @FilterPtr_
     Params_[6] := @Scope_
     
     return (Cog_ := cognew(@entry, @Params_) + 1)
@@ -66,8 +71,10 @@ Set low pass filter
 C: cutoff 1-2048 (2048 = fs/2; no filter)
 R: resonance 1-1000
 }
-    cos := WORD[$e000][$800 - C]                    ' cos(c)
+    C #>= 1                                         ' do not attempt fs/inf
     R #>= 1                                         ' set minimum resonance value
+
+    cos := WORD[$e000][$800 - C]                    ' cos(c)
     
     if cos == 0
         gain := exp.FromFixed($1_0000)
@@ -94,9 +101,16 @@ R: resonance 1-1000
         cb1 := exp.FromFixed($1_0000 + exp.ToFixed(b2) - exp.ToFixed(b1))
         cb1 := exp.Div(cb1, b)                      ' cb1 = (1 + b2 - b1) / b
 
-    Filter_[0] := exp.ToFixed(gain) >> 3
-    Filter_[1] := exp.ToFixed(cb0) >> 3
-    Filter_[2] := exp.ToFixed(cb1) >> 3
+    if FilterPtr_ == @Filter_[0]                    ' swap atomically to other filter
+        Filter_[3] := exp.ToFixed(gain) >> 3
+        Filter_[4] := exp.ToFixed(cb0) >> 3
+        Filter_[5] := exp.ToFixed(cb1) >> 3
+        FilterPtr_ := @Filter_[3]
+    else
+        Filter_[0] := exp.ToFixed(gain) >> 3
+        Filter_[1] := exp.ToFixed(cb0) >> 3
+        Filter_[2] := exp.ToFixed(cb1) >> 3
+        FilterPtr_ := @Filter_[0]
 
 DAT
     org
@@ -113,7 +127,7 @@ entry
     add r0, #4
     rdlong profile_ptr, r0
     add r0, #4
-    rdlong filter_ptr, r0
+    rdlong filter_ptr_ptr, r0
     add r0, #4
     rdlong scope_ptr, r0
     
@@ -149,10 +163,12 @@ entry
     maxs r0, high
     mins r0, low
 
+    mov cptr, filter_ptr_ptr                ' deref filter pointer pointer
+    rdword cptr, cptr
+
     shl r0, #10                             ' move to high 16
     andn r0, mask16
 
-    mov cptr, filter_ptr
     rdword r1, cptr                         ' gain
     add cptr, #4
     call #smult                             ' output *= gain
@@ -260,7 +276,7 @@ low             long    $fff0_0000
 
 profile_ptr     res     1
 scope_ptr       res     1
-filter_ptr      res     1
+filter_ptr_ptr  res     1
 inputs_ptr      res     1
 triggers_ptr    res     1
 num_inputs      res     1
