@@ -13,7 +13,7 @@ VAR
     LONG    Params_[7]
 
     LONG    Profile_
-    LONG    Filter_[6]              ' one stage of Butterworth filter coefficients (gain, b0, b1) (x2 for atomic swap)
+    LONG    Filter_[12]              ' two stage of Butterworth filter coefficients (gain, b0, b1, gain, b0, b1) (x2 for atomic swap)
     LONG    FilterPtr_
     BYTE    Scope_[480]             ' oscilliscope date
     
@@ -30,9 +30,17 @@ NumInput:       array size of InputsPtr and TriggersPtr
     Filter_[0] := 1 << 13               ' gain = 1.0
     Filter_[1] := 2 << 13               ' b0 = 2.0
     Filter_[2] := 1 << 13               ' b1 = 1.0 (cutoff = fs/2; no effective filter)
-    Filter_[3] := Filter_[0]
-    Filter_[4] := Filter_[1]
-    Filter_[5] := Filter_[2]
+    Filter_[3] := 1 << 13
+    Filter_[4] := 2 << 13
+    Filter_[5] := 1 << 13
+
+    Filter_[6] := Filter_[0]
+    Filter_[7] := Filter_[1]
+    Filter_[8] := Filter_[2]
+    Filter_[9] := Filter_[3]
+    Filter_[10] := Filter_[4]
+    Filter_[11] := Filter_[5]
+
     FilterPtr_ := @Filter_[0]
 
     Params_[0] := PinNum
@@ -42,7 +50,7 @@ NumInput:       array size of InputsPtr and TriggersPtr
     Params_[4] := @Profile_
     Params_[5] := @FilterPtr_
     Params_[6] := @Scope_
-    
+
     return (Cog_ := cognew(@entry, @Params_) + 1)
     
 PUB Stop
@@ -65,7 +73,7 @@ Get clock cycles spent per sample
 }
     return Profile_
 
-PUB SetFilter(C, R) | b1, b2, b, gain, cb0, cb1, t, cos
+PUB SetFilter(C, R) | b1, b2, b, gain0, cb0, cb1, gain1, cb2, cb3, t, cos
 {
 Set low pass filter
 C: cutoff 1-2048 (2048 = fs/2; no filter)
@@ -77,22 +85,26 @@ R: resonance 1-1000
     cos := WORD[$e000][$800 - C]                    ' cos(c)
     
     if cos == 0
-        gain := exp.FromFixed($1_0000)
+        gain0 := exp.FromFixed($1_0000)
         cb0 := exp.FromFixed($2_0000)               ' no filter at fs/2 (regardless of resonance)
         cb1 := exp.FromFixed($1_0000)
+        gain1 := gain0
+        cb2 := cb0
+        cb3 := cb1
     else
         t := exp.FromFixed(WORD[$e000][C])          ' sin(c)
         t := exp.Div(t, exp.FromFixed(cos))         ' t = tan(C)
 
-        b1 := exp.Div(exp.FromFixed($1_6a0a), exp.FromFixed(R << 16))
-        b1 := exp.Div(b1, t)                        ' b1 = (sqrt(2) / R) / t
+        ' stage 1
+        b1 := exp.Div(exp.FromFixed($0_c3ef), exp.FromFixed(R << 12))
+        b1 := exp.Div(b1, t)                        ' b1 = (0.765367 / R) / t
 
         b2 := exp.Div(exp.FromFixed($1_0000), t)
         b2 := exp.Div(b2, t)                        ' b2 = 1/t^2
 
                                                     ' b = b1 + b2 + 1
         b := exp.FromFixed(exp.ToFixed(b1) + exp.ToFixed(b2) + $1_0000)
-        gain := exp.Div(exp.FromFixed($1_0000), b)  ' gain = 1/b
+        gain0 := exp.Div(exp.FromFixed($1_0000), b)  ' gain = 1/b
 
         cb0 := exp.Mult(exp.FromFixed(-$2_0000), b2)
         cb0 := exp.Plus(cb0, $2_0000)
@@ -101,15 +113,35 @@ R: resonance 1-1000
         cb1 := exp.FromFixed($1_0000 + exp.ToFixed(b2) - exp.ToFixed(b1))
         cb1 := exp.Div(cb1, b)                      ' cb1 = (1 + b2 - b1) / b
 
+        ' stage 2
+        b1 := exp.Div(exp.FromFixed($1_d907), exp.FromFixed(R << 12))
+        b1 := exp.Div(b1, t)                        ' b1 = (1.847759 / R) / t
+
+        b := exp.FromFixed(exp.ToFixed(b1) + exp.ToFixed(b2) + $1_0000)
+        gain1 := exp.Div(exp.FromFixed($1_0000), b) ' gain = 1/b
+
+        cb2 := exp.Mult(exp.FromFixed(-$2_0000), b2)
+        cb2 := exp.Plus(cb2, $2_0000)
+        cb2 := exp.Div(cb2, b)                      ' cb2 = (-2*b2 + 2) / b
+
+        cb3 := exp.FromFixed($1_0000 + exp.ToFixed(b2) - exp.ToFixed(b1))
+        cb3 := exp.Div(cb3, b)                      ' cb3 = (1 + b2 - b1) / b
+
     if FilterPtr_ == @Filter_[0]                    ' swap atomically to other filter
-        Filter_[3] := exp.ToFixed(gain) >> 3
-        Filter_[4] := exp.ToFixed(cb0) >> 3
-        Filter_[5] := exp.ToFixed(cb1) >> 3
-        FilterPtr_ := @Filter_[3]
+        Filter_[6] := exp.ToFixed(gain0) ~> 3
+        Filter_[7] := exp.ToFixed(cb0) ~> 3
+        Filter_[8] := exp.ToFixed(cb1) ~> 3
+        Filter_[9] := exp.ToFixed(gain1) ~> 3
+        Filter_[10] := exp.ToFixed(cb2) ~> 3
+        Filter_[11] := exp.ToFixed(cb3) ~> 3
+        FilterPtr_ := @Filter_[6]
     else
-        Filter_[0] := exp.ToFixed(gain) >> 3
-        Filter_[1] := exp.ToFixed(cb0) >> 3
-        Filter_[2] := exp.ToFixed(cb1) >> 3
+        Filter_[0] := exp.ToFixed(gain0) ~> 3
+        Filter_[1] := exp.ToFixed(cb0) ~> 3
+        Filter_[2] := exp.ToFixed(cb1) ~> 3
+        Filter_[3] := exp.ToFixed(gain1) ~> 3
+        Filter_[4] := exp.ToFixed(cb2) ~> 3
+        Filter_[5] := exp.ToFixed(cb3) ~> 3
         FilterPtr_ := @Filter_[0]
 
 DAT
@@ -169,13 +201,15 @@ entry
     shl r0, #10                             ' move to high 16
     andn r0, mask16
 
+    ' 2 pole 2 stage filter
+    ' stage 1
+    ' gain
     rdword r1, cptr                         ' gain
     add cptr, #4
     call #smult                             ' output *= gain
     shl r1, #3
     mov out, r1                             ' in high 16
 
-    ' 2 pole single stage filter
     mov r0, history+0
     rdword r1, cptr
     add cptr, #4                            ' b0
@@ -199,6 +233,39 @@ entry
     mov history+1, history+0                ' advance history
     andn h, mask16
     mov history+0, h
+
+    ' stage 2
+    ' gain (again - we lack the precision to do gain in one pass up front)
+    andn out, mask16
+    mov r0, out
+    rdword r1, cptr                         ' gain
+    add cptr, #4
+    call #smult                             ' output *= gain
+    shl r1, #3
+    mov out, r1                             ' in high 16
+
+    mov r0, history+2
+    rdword r1, cptr
+    add cptr, #4                            ' b0
+    call #smult
+    shl r1, #3
+    sub out, r1                             ' output -= history[2] * b0
+    mov h, out                              ' new_history = output
+
+    mov r0, history+3
+    rdword r1, cptr                         ' b1
+    call #smult
+    shl r1, #3
+    sub h, r1                               ' new_history -= history[3] * b1
+
+    mov out, history+2
+    shl out, #1
+    add out, h                              ' output = new_history + history[2] * 2
+    add out, history+3                      ' output += history[3] * 1
+
+    mov history+3, history+2                ' advance history
+    andn h, mask16
+    mov history+2, h
 
     ' finally, present the sample out
 
@@ -243,36 +310,86 @@ entry
 
     jmp #:window
 
-smult
-    ' 336 clocks total call to ret
-    ' signed multiply r1 *= r0
-    ' r0 must already be << 16 with lower 16 clear
-    ' r1 must have upper 16 clear
-    test r1, #1 wz                          ' first iteration without C
-    if_nz sub r1, r0                        ' add down
-    sar r1, #1 wc                           ' shift right, old bit 0 -> C
-    mov c0, #15                             ' 15 more iterations (=16)
-:loop
-    test r1, #1 wz                          ' current bit 0 -> !Z
-    if_c_and_z add r1, r0                   ' 01: add up
-    if_nc_and_nz sub r1, r0                 ' 10: add down
-    sar r1, #1 wc                           ' shift right, old bit 0 -> C
-    djnz c0, #:loop
+smult                                       ' r1 *= r0, r0 in 31:16, r1 in 15:0
+    test r1, sign16 wc
+    muxc r1, sign16_ext
+    abs r1, r1 wc                           ' adjust signs after abs (seems to be fastest way to do this)
+    muxc r2, #$01
+    abs r0, r0 wc
+    muxc r2, #$02
+
+    shr r1, #1 wc                           ' prime initial bit
+
+    if_c add r1,r0 wc                       ' c*r1..
+    rcr r1, #1 wc                           ' ..ultimately to the right
+
+    if_c add r1, r0 wc
+    rcr r1, #1 wc
+
+    if_c add r1, r0 wc
+    rcr r1, #1 wc
+
+    if_c add r1, r0 wc
+    rcr r1, #1 wc
+
+    if_c add r1, r0 wc
+    rcr r1, #1 wc
+
+    if_c add r1, r0 wc
+    rcr r1, #1 wc
+
+    if_c add r1, r0 wc
+    rcr r1, #1 wc
+
+    if_c add r1, r0 wc
+    rcr r1, #1 wc
+
+    if_c add r1, r0 wc
+    rcr r1, #1 wc
+
+    if_c add r1, r0 wc
+    rcr r1, #1 wc
+
+    if_c add r1, r0 wc
+    rcr r1, #1 wc
+
+    if_c add r1, r0 wc
+    rcr r1, #1 wc
+
+    if_c add r1, r0 wc
+    rcr r1, #1 wc
+
+    if_c add r1, r0 wc
+    rcr r1, #1 wc
+
+    if_c add r1, r0 wc
+    rcr r1, #1 wc
+
+    if_c add r1, r0 wc
+    rcr r1, #1
+
+    max r1, high32s                         ' limit
+
+    test r2, #$03 wc                        ' adjust sign
+    negc r1, r1                             ' opposite sign, negative result
 
 smult_ret
     ret
 
 
-sign            long    $80000000
+sign            long    $8000_0000
+sign16          long    $0000_8000
+sign16_ext      long    $ffff_8000
 fsclk           long    1814
 pos             long    0
 mask16          long    $ffff
-history         long    0[2]
+history         long    0[4]
 s_480           long    480
 cnt_d           long    0
 
 high            long    $000f_ffff
 low             long    $fff0_0000
+high32s         long    $7fff_ffff
 
 profile_ptr     res     1
 scope_ptr       res     1

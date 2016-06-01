@@ -350,7 +350,7 @@ PRI OnFilter | c, r, e
 Update LPF
 }
     c := WORD[PatchParamPtr(v#Patch_Cutoff)]
-    r := WORD[PatchParamPtr(v#Patch_Resonance)] << 1
+    r := WORD[PatchParamPtr(v#Patch_Resonance)] 
 
     e := WORD[$d000][(c & $3f) << 5] | $1_0000      ' turn 0-$200 range into 8 octave exponential
     c >>= 6                                         ' c becomes octave (non fractional part of exponent)
