@@ -35,7 +35,7 @@ PatchSize: patch size (in bytes!)
     if !LoadSector(sector)                      ' read sector (if not already)
         return FALSE                            ' return failure
 
-    if (StrComp(@Header, ptr))                  ' validate header to see if a patch is actully here
+    if (StrComp(@Header, ptr))                  ' validate header to see if a patch is actually here
         ByteMove(PatchPtr, ptr+8, PatchSize)    ' copy it in
     return TRUE                                 ' return success
     
@@ -84,15 +84,20 @@ Erase $1000 byte sector at SectorNum_
     flash.Stop
     return TRUE
     
-PRI WriteRecord(Record) 
+PRI WriteRecord(Record) | ptr
 {
 Write record from loaded sector back to flash
 Record: record numer 0-$ff
 }
+    ptr := @SectorBuf_[Record * $100]           ' 256 bytes per patch
+
+    if (!StrComp(@Header, ptr))                 ' if nothing is actually here, let the flash stay erased
+        return TRUE
+
     if NOT Start
         return FALSE
     
-    flash.WriteFlash((SectorNum_-1) * $1000 + Record * $100, @SectorBuf_[Record * $100], $100)
+    flash.WriteFlash((SectorNum_-1) * $1000 + Record * $100, ptr, $100)
     flash.Stop ' free the cog when done
     return TRUE
 
