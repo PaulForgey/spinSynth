@@ -234,8 +234,6 @@ entry
     andn h, mask16
     mov history+0, h
 
-    ' stage 2
-    ' gain (again - we lack the precision to do gain in one pass up front)
     andn out, mask16
     mov r0, out
     rdword r1, cptr                         ' gain

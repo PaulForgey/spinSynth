@@ -27,6 +27,7 @@ VAR
     LONG    OscOutputs_[4]                      ' output per oscillator cog
     LONG    OscTriggers_[4]                     ' trigger per oscillator cog
     LONG    OscInputs_[128]                     ' 4 cogs * 8 oscillators * 4 parameters = 128 longs total
+    LONG    WavePtrs_[v#Patch_Ops]              ' phase masks
 
     ' UI control IDs and values
     '
@@ -44,6 +45,7 @@ VAR
     WORD    PatchEndUI_                         ' controls < this value affect the patch
     WORD    CutoffUI_                           ' LPF cutoff control
     WORD    ResonanceUI_                        ' LPF resonance control
+    WORD    WaveUI_                             ' phase mask control
 
     ' State read from keyboard and then picked up after in non-MIDI loop
     BYTE    Pedal_                              ' control $40 value
@@ -76,9 +78,12 @@ after setting up the UI, do things in this order:
 }
     midi.Start(MIDI_Pin)
 
+    repeat i from 0 to v#Patch_Ops-1
+        WavePtrs_[i] := PatchOscParamPtr(i, v#Patch_Wave)
+
     ' 4 oscillator cogs
     repeat i from 0 to 3
-        osc[i].Start(@OscInputs_[i * 4 * 8], @Patch_[v#Patch_Algorithm], @Patch_[v#Patch_Feedback])
+        osc[i].Start(@OscInputs_[i * 4 * 8], PatchParamPtr(v#Patch_Algorithm), @WavePtrs_, PatchParamPtr(v#Patch_Feedback))
         OscOutputs_[i] := osc[i].OutputPtr
         OscTriggers_[i] := osc[i].TriggerPtr
 
@@ -122,6 +127,7 @@ after setting up the UI, do things in this order:
     ui.GroupItem(String("Wheel"), PatchOscParamPtr(0, v#Patch_Wheel), ui#Type_Pct)
     ui.GroupItem(String("Frequency"), PatchOscParamPtr(0, v#Patch_Frequency), ui#Type_Freq)
     ui.GroupItem(String("Detune"), PatchOscParamPtr(0, v#Patch_Detune), ui#Type_Detune)
+    WaveUI_ := ui.GroupItem(String("Phase Mask"), PatchOscParamPtr(0, v#Patch_Wave), ui#Type_Wave)
     ui.EndGroup
 
     ui.BeginGroup(String("Envelopes"))
@@ -246,6 +252,10 @@ Control: 0-2
             OnFilter
             Dirty_ := TRUE
 
+        WaveUI_:
+            OnWave
+            Dirty_ := TRUE
+
         other:
             ' activity elsewhere soils the patch
             if button => PatchStartUI_ AND button < PatchEndUI_
@@ -302,6 +312,8 @@ Load a patch
         ui.Refresh
         ' update LPF
         OnFilter
+        ' update Wave
+        OnWave
         ' not dirty
         Dirty_ := FALSE
         ui.SetStatus(String(" "))
@@ -320,6 +332,7 @@ Swap patch with alternate values (initially the loaded ones)
 
     ui.Refresh
     OnFilter
+    OnWave
     Dirty_ := TRUE ' could be smarter here
 
 PRI OnOperatorChange(Sel) | i
@@ -357,6 +370,12 @@ Update LPF
     e >>= 5 + (8 - c)                               ' shift it down to range 0-$800
 
     out.SetFilter(e, r)
+
+PRI OnWave
+{
+Update Wave
+}
+    WavePtrs_[0] ^= 1
 
 PRI OnMidi(M)
 {

@@ -15,15 +15,16 @@ CON
     Patch_Op                = 5             ' offset to first operator
 
     Patch_Osc               = 0             ' offset inside operator to oscillator
-    Patch_OscWords          = 5
+    Patch_OscWords          = 6
 
     Patch_Level             = 0
     Patch_Velocity          = 1
     Patch_Wheel             = 2
     Patch_Frequency         = 3
     Patch_Detune            = 4
+    Patch_Wave              = 5
 
-    Patch_Env               = 5             ' offset inside operator to envelope
+    Patch_Env               = 6             ' offset inside operator to envelope
     Patch_EnvWords          = 9
 
     Patch_R1                = 0

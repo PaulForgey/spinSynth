@@ -14,8 +14,9 @@ CON
     Type_Detune         = 5 ' detuning from -256 to 255 scaled from $1ff to $ff
     Type_Feedback       = 6 ' 0-19 with value being 19-displayed
     Type_Algo           = 7 ' algorithm selection, which also updates graphical drawing
-    Type_Button         = 8 ' button with no displayed value, activated on adjust(1)
-    Type_Combo          = 9 ' button with displayed 9 bit hex value, activated on adjust(1), adjusted in units on adjust(-$10 or $10)
+    Type_Wave           = 8 ' phase mask 0-$1fff
+    Type_Button         = 9 ' button with no displayed value, activated on adjust(1)
+    Type_Combo          =10 ' button with displayed 9 bit hex value, activated on adjust(1), adjusted in units on adjust(-$10 or $10)
 
 OBJ
     vga         : "synth.vga"
@@ -184,6 +185,9 @@ Adjust current selection by -$10, -1, 1, or $10
             Type_Algo:
                 v := AdjustOne(v, D)
 
+            Type_Wave:
+                v := AdjustWave(v, D)
+
             Type_Op:
                 v := AdjustOne(v, D)
 
@@ -271,6 +275,9 @@ Limit a proposed new value according to type
     
         Type_Algo:
             maxValue := 11
+
+        Type_Wave:
+            maxValue := $1fff
 
         Type_Detune:
             maxValue := $1ff
@@ -494,6 +501,18 @@ Type_Combo::Display
 }
     FormatNumber(@DisplayStr_[0], V, 3, $10, " ")
     DisplayStr_[3] := 7
+
+PRI AdjustWave(V, D)
+{
+Type_Wave::Adjust
+}
+    if (D == -$10)
+        V -= $100
+    elseif (D == $10)
+        V += $100
+    else
+        V += D
+    return V
 
 PRI FormatNumber(StringPtr, V, Digits, Base, Fill) | n, d, p
 {
