@@ -27,15 +27,10 @@
 import math
 import sys
 
-def sin(n):
-    n = int(round(math.sin(n / 4096.0 * math.pi) * 65536.0, 0))
-    if n > 0xffff:
-        n = 0xffff
-    return n
-
-def log(n):
-    if n > 0:
-        n = math.log(n / 65536.0) / math.log(2.0)
+def logsin(n):
+    n = math.sin(float(n) / 4096.0 * math.pi)
+    if n > 0.0:
+        n = math.log(n / 1.0) / math.log(2.0)
         n = -int(round(n * 2048.0, 0))
         n = n & 0xffff
     else:
@@ -56,7 +51,7 @@ def sines():
         sys.stdout.write("WORD ")
 
         for y in range(0, 0x20):
-            n = log(sin(x+y))
+            n = logsin(x+y)
 
             sys.stdout.write(str(n))
 
@@ -64,6 +59,7 @@ def sines():
                 sys.stdout.write(",")
             else:
                 sys.stdout.write(" \'" + hex(x) + "\n")
+    sys.stdout.write("WORD 0")
 
     print
 
@@ -79,17 +75,24 @@ def tables():
     sines()
 
 def sinewave(e):
+    td = list()
+
     for x in range(0, 0x2000):
         n = x & 0x7ff
-        if (x & 0x800):
-            n = n ^ 0x7ff
-        n = log(sin(n)) + e
+        if ((x & 0xfff) > 0x800):
+            n = 0x800 - n
+        elif ((x & 0xfff) == 0x800):
+            n = 0x800
+        n = logsin(n) + e
         y = alog((n & 0x7ff) ^ 0x7ff) | 0x10000
         n >>= 11
         y >>= n
         if (x & 0x1000):
             y = -y
+
         print y
 
+
 tables()
+#sinewave(0)
 

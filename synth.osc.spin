@@ -323,14 +323,14 @@ oscillator
     shr env, #14                        ' scale envelope
     shr r0, #4                          ' whole number t
 
-    test r0, half wc                    ' sign into carry
-    test r0, quarter wz                 ' odd half into z
+    test r0, half wz                    ' sign into z
+    and r0, half_mask
 
-    if_nz xor r0, quarter_mask
-    and r0, quarter_mask
+    cmp quarter, r0 wc                  ' odd quarter?
+    negc r0, r0
 
+    if_c and r0, quarter_mask
     add r0, sine_ptr                    ' sine table
-    ' [nop]
 
     rdword r0, r0                       ' r0=log(sin(r0))
 
@@ -349,7 +349,7 @@ oscillator
     shr env, #12                        ' whole exponent
     max env, #31
     shr r0, env                         ' into the right power of 2
-    negc r0, r0                         ' finally, restore sign
+    negnz r0, r0                        ' finally, restore sign
 
 oscillator_ret
     ret                                 ' r0 has an 18 bit sample value
@@ -492,6 +492,7 @@ alog_ptr        long    $d000
 quarter         long    $0800 << 1
 quarter_mask    long    $07ff << 1
 half            long    $1000 << 1
+half_mask       long    $0fff << 1
 period          long    $2000 << 1
 env_mask        long    $7fff << 1
 minus_one       long    $ffff_ffff
