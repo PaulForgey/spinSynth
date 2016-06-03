@@ -502,14 +502,17 @@ Type_Combo::Display
     FormatNumber(@DisplayStr_[0], V, 3, $10, " ")
     DisplayStr_[3] := 7
 
-PRI AdjustWave(V, D)
+PRI AdjustWave(V, D) | e
 {
 Type_Wave::Adjust
 }
-    if (D == -$10)
-        V -= $100
-    elseif (D == $10)
-        V += $100
+    if (D < -1) OR (D > 1)
+        e := >|V
+        if D < 0
+            e := (e - 1) #> 0
+        else
+            e := (e + 1) <# 16
+        V := (1 << e) -1
     else
         V += D
     return V
