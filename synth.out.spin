@@ -5,8 +5,11 @@ Copyright (c)2016 Paul Forgey
 See end of file for terms of use
 }}
 
+CON
+    Frac    = 13        ' number of fractional bits the coeefficients use
+
 OBJ
-    exp     : "synth.float"
+    fp      : "synth.float"
 
 VAR
     LONG    Cog_
@@ -27,12 +30,12 @@ NumInput:       array size of InputsPtr and TriggersPtr
 }
     Stop
 
-    Filter_[0] := 1 << 13               ' gain = 1.0
-    Filter_[1] := 2 << 13               ' b0 = 2.0
-    Filter_[2] := 1 << 13               ' b1 = 1.0 (cutoff = fs/2; no effective filter)
-    Filter_[3] := 1 << 13
-    Filter_[4] := 2 << 13
-    Filter_[5] := 1 << 13
+    Filter_[0] := 1 << Frac             ' gain = 1.0
+    Filter_[1] := 2 << Frac             ' b0 = 2.0
+    Filter_[2] := 1 << Frac             ' b1 = 1.0 (cutoff = fs/2; no effective filter)
+    Filter_[3] := 1 << Frac
+    Filter_[4] := 2 << Frac
+    Filter_[5] := 1 << Frac
 
     Filter_[6] := Filter_[0]
     Filter_[7] := Filter_[1]
@@ -60,6 +63,9 @@ Stop audio output, freeing cog
     if Cog_
         cogstop(Cog_ - 1)
     Cog_ := 0
+
+PUB FilterPtr
+    return FilterPtr_
     
 PUB ScopePtr
 {
@@ -80,68 +86,65 @@ C: cutoff 1-2048 (2048 = fs/2; no filter)
 R: resonance 1-1000
 }
     C #>= 1                                         ' do not attempt fs/inf
-    R #>= 1                                         ' set minimum resonance value
+    R += $10                                        ' set minimum resonance value
+
+    R := fp.FromFixed(R << 12, 16)
 
     cos := WORD[$e000][$800 - C]                    ' cos(c)
     
     if cos == 0
-        gain0 := exp.FromFixed($1_0000)
-        cb0 := exp.FromFixed($2_0000)               ' no filter at fs/2 (regardless of resonance)
-        cb1 := exp.FromFixed($1_0000)
+        gain0 := 1.0
+        cb0 := 2.0                                  ' no filter at fs/2 (regardless of resonance)
+        cb1 := 1.0
         gain1 := gain0
         cb2 := cb0
         cb3 := cb1
     else
-        t := exp.FromFixed(WORD[$e000][C])          ' sin(c)
-        t := exp.Div(t, exp.FromFixed(cos))         ' t = tan(C)
+        t := fp.FromFixed(WORD[$e000][C], 16)
+        t := fp.F_Div(t, fp.FromFixed(cos, 16))
 
         ' stage 1
-        b1 := exp.Div(exp.FromFixed($0_c3ef), exp.FromFixed(R << 12))
-        b1 := exp.Div(b1, t)                        ' b1 = (0.765367 / R) / t
+        b1 := fp.F_Div(fp.F_Div(0.765367, R), t)    ' b1 = (0.765367 / R) / t
+        b2 := fp.F_Div(1.0, fp.F_Mul(t, t))         ' b2 = 1/t^2
 
-        b2 := exp.Div(exp.FromFixed($1_0000), t)
-        b2 := exp.Div(b2, t)                        ' b2 = 1/t^2
+        b := fp.F_Add(fp.F_Add(b1, b2), 1.0)        ' b = b1 + b2 + 1
 
-                                                    ' b = b1 + b2 + 1
-        b := exp.FromFixed(exp.ToFixed(b1) + exp.ToFixed(b2) + $1_0000)
-        gain0 := exp.Div(exp.FromFixed($1_0000), b)  ' gain = 1/b
+        gain0 := fp.F_Div(1.0, b)                   ' gain = 1/b
 
-        cb0 := exp.Mult(exp.FromFixed(-$2_0000), b2)
-        cb0 := exp.Plus(cb0, $2_0000)
-        cb0 := exp.Div(cb0, b)                      ' cb0 = (-2*b2 + 2) / b
+        cb0 := fp.F_Add(fp.F_Mul(-2.0, b2), 2.0)
+        cb0 := fp.F_Div(cb0, b)                     ' cb0 = (-2*b2 + 2) / b
 
-        cb1 := exp.FromFixed($1_0000 + exp.ToFixed(b2) - exp.ToFixed(b1))
-        cb1 := exp.Div(cb1, b)                      ' cb1 = (1 + b2 - b1) / b
+        cb1 := fp.F_Sub(fp.F_Add(1.0, b2), b1)
+        cb1 := fp.F_Div(cb1, b)                     ' cb1 = (1 + b2 - b1) / b
 
         ' stage 2
-        b1 := exp.Div(exp.FromFixed($1_d907), exp.FromFixed(R << 12))
-        b1 := exp.Div(b1, t)                        ' b1 = (1.847759 / R) / t
+        b1 := fp.F_Div(fp.F_Div(1.847759, R), t)
 
-        b := exp.FromFixed(exp.ToFixed(b1) + exp.ToFixed(b2) + $1_0000)
-        gain1 := exp.Div(exp.FromFixed($1_0000), b) ' gain = 1/b
+        b := fp.F_Add(fp.F_Add(b1, b2), 1.0)
 
-        cb2 := exp.Mult(exp.FromFixed(-$2_0000), b2)
-        cb2 := exp.Plus(cb2, $2_0000)
-        cb2 := exp.Div(cb2, b)                      ' cb2 = (-2*b2 + 2) / b
+        gain1 := fp.F_Div(1.0, b)                   ' gain = 1 / b
 
-        cb3 := exp.FromFixed($1_0000 + exp.ToFixed(b2) - exp.ToFixed(b1))
-        cb3 := exp.Div(cb3, b)                      ' cb3 = (1 + b2 - b1) / b
+        cb2 := fp.F_Add(fp.F_Mul(-2.0, b2), 2.0)
+        cb2 := fp.F_Div(cb2, b)                     ' cb2 = (-2*b2 + 2) / b
+
+        cb3 := fp.F_Sub(fp.F_Add(1.0, b2), b1)
+        cb3 := fp.F_Div(cb3, b)                     ' cb3 = (1 + b2 - b1) / b
 
     if FilterPtr_ == @Filter_[0]                    ' swap atomically to other filter
-        Filter_[6] := exp.ToFixed(gain0) ~> 3
-        Filter_[7] := exp.ToFixed(cb0) ~> 3
-        Filter_[8] := exp.ToFixed(cb1) ~> 3
-        Filter_[9] := exp.ToFixed(gain1) ~> 3
-        Filter_[10] := exp.ToFixed(cb2) ~> 3
-        Filter_[11] := exp.ToFixed(cb3) ~> 3
+        Filter_[6] := fp.ToFixed(gain0, Frac)
+        Filter_[7] := fp.ToFixed(cb0, Frac)
+        Filter_[8] := fp.ToFixed(cb1, Frac)
+        Filter_[9] := fp.ToFixed(gain1, Frac)
+        Filter_[10] := fp.ToFixed(cb2, Frac)
+        Filter_[11] := fp.ToFixed(cb3, Frac)
         FilterPtr_ := @Filter_[6]
     else
-        Filter_[0] := exp.ToFixed(gain0) ~> 3
-        Filter_[1] := exp.ToFixed(cb0) ~> 3
-        Filter_[2] := exp.ToFixed(cb1) ~> 3
-        Filter_[3] := exp.ToFixed(gain1) ~> 3
-        Filter_[4] := exp.ToFixed(cb2) ~> 3
-        Filter_[5] := exp.ToFixed(cb3) ~> 3
+        Filter_[0] := fp.ToFixed(gain0, Frac)
+        Filter_[1] := fp.ToFixed(cb0, Frac)
+        Filter_[2] := fp.ToFixed(cb1, Frac)
+        Filter_[3] := fp.ToFixed(gain1, Frac)
+        Filter_[4] := fp.ToFixed(cb2, Frac)
+        Filter_[5] := fp.ToFixed(cb3, Frac)
         FilterPtr_ := @Filter_[0]
 
 DAT
