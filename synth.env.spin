@@ -108,6 +108,13 @@ Current state 0-5
 }
     return State_
 
+PUB Silence
+{
+Set output level to 0 and state to 5
+}
+    State_ := 5
+    SetLevel(0, 0)
+
 PUB SetWheel(W)
 {
 Set modulation wheel value, 0-$7f

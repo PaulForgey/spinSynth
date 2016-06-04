@@ -298,6 +298,8 @@ Load a patch
     ' free up a cog for the flash driver
     midi.Stop
 
+    Silence
+
     okay := flash.Load(PatchNum, @Patch_, v#Patch_Words * 2)
     
     ' get midi back
@@ -319,7 +321,13 @@ Load a patch
         ui.SetStatus(String(" "))
     else
         ui.SetStatus(String("FLASH READ FAILED"))
-        
+
+PRI Silence | n
+{
+Silence all outputs
+}
+    repeat n from 0 to 7
+        v[n].Silence
 
 PRI OnSwapPatch | w, n
 {

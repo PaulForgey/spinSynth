@@ -206,7 +206,6 @@ entry
 
     ' 2 pole 2 stage filter
     ' stage 1
-    ' gain
     rdword r1, cptr                         ' gain
     add cptr, #4
     call #smult                             ' output *= gain
@@ -237,6 +236,7 @@ entry
     andn h, mask16
     mov history+0, h
 
+    ' stage 2
     andn out, mask16
     mov r0, out
     rdword r1, cptr                         ' gain
@@ -384,7 +384,7 @@ sign16_ext      long    $ffff_8000
 fsclk           long    1814
 pos             long    0
 mask16          long    $ffff
-history         long    0[4]
+history         long    $8000_0000[4]
 s_480           long    480
 cnt_d           long    0
 

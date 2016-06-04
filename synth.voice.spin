@@ -159,6 +159,13 @@ In both key-up state and the sustain pedal is up
 }
     return Playing_ <> 0
 
+PUB Silence | op
+{
+Set oscillator levels to 0
+}
+    repeat op from 0 to Patch_Ops-1
+        env[op].Silence
+
 PRI OpDown(Op, K, V) | n, s
 {
 Key down state per operator
