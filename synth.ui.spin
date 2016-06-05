@@ -8,15 +8,16 @@ See end of file for terms of use
 CON
     Type_Raw            = 0 ' hex value 0-$200
     Type_Pct            = 1 ' 00-99 scaled from 0-$200
-    Type_Freq           = 2 ' frequency value as multiplier or fixed
-    Type_Bool           = 3 ' yes or no
-    Type_Op             = 4 ' Op 1-4
-    Type_Detune         = 5 ' detuning from -256 to 255 scaled from $1ff to $ff
-    Type_Feedback       = 6 ' 0-19 with value being 19-displayed
-    Type_Algo           = 7 ' algorithm selection, which also updates graphical drawing
-    Type_Wave           = 8 ' phase mask 0-$1fff
-    Type_Button         = 9 ' button with no displayed value, activated on adjust(1)
-    Type_Combo          =10 ' button with displayed 9 bit hex value, activated on adjust(1), adjusted in units on adjust(-$10 or $10)
+    Type_Freq           = 2 ' frequency value as fixed or played note value
+    Type_Mult           = 3 ' frequency multiplier
+    Type_Bool           = 4 ' yes or no
+    Type_Op             = 5 ' Op 1-4
+    Type_Detune         = 6 ' detuning from -256 to 255 scaled from $1ff to $ff
+    Type_Feedback       = 7 ' 0-19 with value being 19-displayed
+    Type_Algo           = 8 ' algorithm selection, which also updates graphical drawing
+    Type_Wave           = 9 ' phase mask 0-$1fff
+    Type_Button         =10 ' button with no displayed value, activated on adjust(1)
+    Type_Combo          =11 ' button with displayed 9 bit hex value, activated on adjust(1), adjusted in units on adjust(-$10 or $10)
 
 OBJ
     vga         : "synth.vga"
@@ -173,6 +174,9 @@ Adjust current selection by -$10, -1, 1, or $10
             Type_Freq:
                 v := AdjustFreq(v, D)
 
+            Type_Mult:
+                v := AdjustMult(v, D)
+
             Type_Bool:
                 v := AdjustBool(v, D)
 
@@ -224,6 +228,9 @@ Update display of field's value
         Type_Freq:
             DisplayFreq(v)
 
+        Type_Mult:
+            DisplayMult(v)
+
         Type_Bool:
             DisplayBool(v)
 
@@ -262,7 +269,10 @@ Limit a proposed new value according to type
 
     case Type
         Type_Freq:
-            maxValue := $17f
+            maxValue := $80
+
+        Type_Mult:
+            maxValue := $1fff
 
         Type_Bool:
             maxValue := 1
@@ -371,54 +381,74 @@ PRI DisplayFreq(V) | p
 {
 Type_Freq::Display
 }
-    if (V & $100)
-        V &= $7f
+    if V == $80
+        DisplayStr_[0] := " "
+        ByteFill(@DisplayStr_[1], "-", 3)
+    else
         p := @NoteNames + ((V // 12) * 2)
         V /= 12
         V <#= 10
         ByteMove(@DisplayStr_, p, 2)
         FormatNumber(@DisplayStr_[2], V, 2, $10, "0")
-    else
-        V &= $ff
-        FormatNumber(@DisplayStr_[0], V >> 4, 2, 10, "x")
-        DisplayStr_[2] := " "
-        DisplayStr_[3] := " "
-        V &= $f
-        ' denote some exact tuning values
-        case V
-            $0:
-                ' nothing
-
-            $4:
-                DisplayStr_[2] := "+"
-                DisplayStr_[3] := "3"
-                
-            $8:
-                DisplayStr_[2] := "+"
-                DisplayStr_[3] := "5"
-                
-            $c:
-                DisplayStr_[2] := "+"
-                DisplayStr_[3] := "7"
-                
-            other:
-                DisplayStr_[2] := "."
-                DisplayStr_[3] := LookupZ(V : "0".."9", "a".."f")
 
 PRI AdjustFreq(V, D)
 {
 Type_Freq::Adjust
 }
-    if (D == -$10)
-        if (V & $100)
-            D := -12
+    if V == $80                     ' $80 is a special "bottom" value
+        if D < 0
+            return V
         else
-            D := -8
-    elseif (D == $10)
-        if (V & $100)
-            D := 12
-        else
-            D := 8
+            V := -1                 ' climb out of it as -1
+
+    if D == -$10                    ' coarse adjust by octave
+        D := -12
+    elseif D == $10
+        D := 12
+
+    V += D
+
+    if V < 0
+        V := $80
+
+    return V
+
+PRI DisplayMult(V)
+{
+Type_Mult::Display
+}
+    FormatNumber(@DisplayStr_[0], V >> 8, 2, 10, "x")
+    DisplayStr_[2] := " "
+    DisplayStr_[3] := " "
+    V &= $ff
+    ' denote some exact tuning values
+    case V
+        $00:
+            ' nothing
+
+        $40:
+            DisplayStr_[2] := "+"
+            DisplayStr_[3] := "3"
+                
+        $80:
+            DisplayStr_[2] := "+"
+            DisplayStr_[3] := "5"
+                
+        $e0:
+            DisplayStr_[2] := "+"
+            DisplayStr_[3] := "7"
+                
+        other:
+            FormatNumber(@DisplayStr_[2], V, 2, 16, "0")
+
+PRI AdjustMult(V, D)
+{
+Type_Mult::Adjust
+}
+    if D == -$10                        ' coarse adjust by 1/4 octave
+        D := -$40
+    elseif D == $10
+        D := $40
     return V + D
 
 PRI DisplayOp(V)

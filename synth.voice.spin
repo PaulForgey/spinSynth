@@ -15,16 +15,17 @@ CON
     Patch_Op                = 5             ' offset to first operator
 
     Patch_Osc               = 0             ' offset inside operator to oscillator
-    Patch_OscWords          = 6
+    Patch_OscWords          = 7
 
     Patch_Level             = 0
     Patch_Velocity          = 1
     Patch_Wheel             = 2
     Patch_Frequency         = 3
-    Patch_Detune            = 4
-    Patch_Wave              = 5
+    Patch_Multiplier        = 4
+    Patch_Detune            = 5
+    Patch_Wave              = 6
 
-    Patch_Env               = 6             ' offset inside operator to envelope
+    Patch_Env               = 7             ' offset inside operator to envelope
     Patch_EnvWords          = 9
 
     Patch_R1                = 0
@@ -176,16 +177,16 @@ V:  Velocity $01-$7f
 }
     s := Frequency(Op)              ' frequency configuration
 
-    if (s & $100)                   ' fixed frequency
-        n := (s & $7f) * 100
+    if (s & $80)
+        n := K * 100                ' note as played
     else
-        n := K * 100                ' multiplier
-        
+        n := s * 100                ' fixed frequency
+
     n += Detune(Op)                 ' detune as configured
 
-    if (s & $100)
+    if (s => $180)
         Frequency_[Op] := 0         ' note a bendable frequency
-        SetFrequency(Op, FrequencyForIndex(n)) ' set the actual frequency
+        SetFrequency(Op, FrequencyForIndex(Op, n)) ' set the actual frequency
     else
         Frequency_[Op] := n         ' bendable frequency
         SetFrequency(Op, BentFrequencyForIndex(Op, n)) ' set the acutal frequency
@@ -204,7 +205,7 @@ PRI BentFrequencyForIndex(Op, n)
 For a note value in cents, return an actual frequency per configured multiplier and pitch bend state
 }
     n += (Bend_ * 1200) ~> 12
-    return (FrequencyForIndex(n) * Frequency(op)) >> 4
+    return FrequencyForIndex(Op, n)
 
 ' global state accessors
 PRI PitchBend
@@ -253,10 +254,16 @@ PRI WheelSense(Op)
 Modulation wheel sensitivity, 0-$200
 }
     return WORD[PatchPtr_][Patch_Op + Patch_OpWords * Op + Patch_Wheel]
+
+PRI Multiplier(Op)
+{
+Fixed point 5.8 multiplier, 0-$1fff, unity at $100
+}
+    return WORD[PatchPtr_][Patch_Op + Patch_OpWords * Op + Patch_Multiplier]
     
 PRI Frequency(Op)
 {
-Frequency multiplier/fixed frequency, 0-$ff (multiplier, $10=unity) or $100-$17f (fixed)
+Fixed frequency value (as midi note value) or base note if $80
 }
     return WORD[PatchPtr_][Patch_Op + Patch_OpWords * Op + Patch_Frequency]
 
@@ -270,9 +277,9 @@ Detune setting, -256 - +255
         v := -($200 - v)
     return v
 
-PRI FrequencyForIndex(N) | octave, index, f
+PRI FrequencyForIndex(Op, N) : f | octave, index
 {
-Given a note in cents, return frequency
+Given a note in cents, return frequency with multiplier
 N: note 0-13199
 }
     N #>= 0
@@ -284,8 +291,9 @@ N: note 0-13199
     ' multiply by C (base note per octave)
     f *= Freq_C10
     ' shave down to desired octave
-    return f >> (16 + (10 - octave))
-    
+    f := f >> (16 + (10 - octave))
+    ' now apply multiplier
+    f := (f * Multiplier(Op)) >> 8
 {{
                             TERMS OF USE: MIT License                                                           
 

@@ -126,6 +126,7 @@ after setting up the UI, do things in this order:
     ui.GroupItem(String("Velocity"), PatchOscParamPtr(0, v#Patch_Velocity), ui#Type_Pct)
     ui.GroupItem(String("Wheel"), PatchOscParamPtr(0, v#Patch_Wheel), ui#Type_Pct)
     ui.GroupItem(String("Frequency"), PatchOscParamPtr(0, v#Patch_Frequency), ui#Type_Freq)
+    ui.GroupItem(String("Multiplier"), PatchOscParamPtr(0, v#Patch_Multiplier), ui#Type_Mult)
     ui.GroupItem(String("Detune"), PatchOscParamPtr(0, v#Patch_Detune), ui#Type_Detune)
     WaveUI_ := ui.GroupItem(String("Phase Mask"), PatchOscParamPtr(0, v#Patch_Wave), ui#Type_Wave)
     ui.EndGroup
