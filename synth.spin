@@ -120,15 +120,22 @@ after setting up the UI, do things in this order:
     ResonanceUI_ := ui.GroupItem(String("Resonance"), PatchParamPtr(v#Patch_Resonance), ui#Type_Raw)
     ui.GroupItem(String("Pitch Bend"), PatchParamPtr(v#Patch_BendRange), ui#Type_Raw)
     ui.EndGroup
+
+    ui.BeginGroup(String("LFO"))
+    ui.GroupItem(String("Waveform"), PatchParamPtr(v#Patch_LFO_Wave), ui#Type_Wave)
+    ui.GroupItem(String("Rate"), PatchParamPtr(v#Patch_LFO_Rate), ui#Type_Pct)
+    ui.EndGroup
+
     ui.BeginGroup(String("Operators"))
     OperatorUI_ := ui.GroupItem(String("Operator"), @OperatorSel_, ui#Type_Op)
     ui.GroupItem(String("Level"), PatchOscParamPtr(0, v#Patch_Level), ui#Type_Pct)
     ui.GroupItem(String("Velocity"), PatchOscParamPtr(0, v#Patch_Velocity), ui#Type_Pct)
     ui.GroupItem(String("Wheel"), PatchOscParamPtr(0, v#Patch_Wheel), ui#Type_Pct)
+    ui.GroupItem(String("LFO"), PatchOscParamPtr(0, v#Patch_LFO), ui#Type_Pct)
     ui.GroupItem(String("Frequency"), PatchOscParamPtr(0, v#Patch_Frequency), ui#Type_Freq)
     ui.GroupItem(String("Multiplier"), PatchOscParamPtr(0, v#Patch_Multiplier), ui#Type_Mult)
     ui.GroupItem(String("Detune"), PatchOscParamPtr(0, v#Patch_Detune), ui#Type_Detune)
-    WaveUI_ := ui.GroupItem(String("Phase Mask"), PatchOscParamPtr(0, v#Patch_Wave), ui#Type_Wave)
+    WaveUI_ := ui.GroupItem(String("Phase Mask"), PatchOscParamPtr(0, v#Patch_Wave), ui#Type_Mask)
     ui.EndGroup
 
     ui.BeginGroup(String("Envelopes"))

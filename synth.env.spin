@@ -18,9 +18,9 @@ VAR
     LONG    Env_            ' current level
     LONG    Clk_            ' system clock at start of transition
     LONG    LastT_          ' system clock as last checked, upper 16 bits masked in
+    LONG    Mod_            ' modulation/LFO wheel state
     WORD    Scale_          ' scale of entire envelope
     BYTE    State_          ' envelope state (0-5, 0=Init, 1=L1..4=L4, 5=L4 finished)
-    BYTE    Wheel_          ' modulation wheel state
 
 PUB Init(OscPtr, EnvPtr)
 {
@@ -52,16 +52,23 @@ Loop L3->L2, Boolean
 }
     return WORD[EnvPtr_][8] <> 0
 
-PRI SetLevel(L, W) | e, f
+PRI SetLevel(L, M) | e, f
 {
 Set effective oscillator output level with log2 scaling
 L: 0,Env_Max
+M: Modulation +/- $10000
 }
-    L #>= 0
+    L := L #> 0 <# Env_Max
+
     ' make note of where we are at
     Env_ := L
-    ' add modulation wheel (unless state 5), but do not add this to persistent state
-    L := (L + W << 11) <# Env_Max
+
+    ' outside of persistent envelope state, add in modulation
+    M := M #> -$10000 <# $10000
+    M := (M * (L >> 3)) ~> 13  ' scale modulation factor by the envelope state
+    L += M              ' then add to or subtract from it
+
+    L := L #> 0 <# Env_Max
 
     ' only look at 15 MSBs
     L >>= 3
@@ -115,14 +122,14 @@ Set output level to 0 and state to 5
     State_ := 5
     SetLevel(0, 0)
 
-PUB SetWheel(W)
+PUB Modulate(M)
 {
-Set modulation wheel value, 0-$7f
+Set total modulation value (wheel+LFO) +/- $10000
 }
-    Wheel_ := W
+    Mod_ := M
 
     if State_ < 5
-        SetLevel(Env_, W)
+        SetLevel(Env_, M)
     else
         SetLevel(Env_, 0)
 
@@ -144,7 +151,7 @@ Enter key-up state by transitioning to state L4
 PUB Advance | t, d, l
 {
 Idle advance our way through the envelope
-completion of state 0 -> 1, 1 -> 2
+  completion of state 0 -> 1, 1 -> 2
 state 2 stays there until key up, or if looping is set, transitions back to state 2
 completion of state 3 -> 4
 state 4 is terminal
@@ -163,7 +170,7 @@ within this scope, state 2 is also terminal if not looping. Regarless, state 3 n
             l := ((Delta_ ~> 4) * d) ~> 12                  ' base+t*(rise/run)
             l := Base_ + l
 
-            SetLevel(l, Wheel_)                             ' set the new level
+            SetLevel(l, Mod_)                               ' set the new level
     
             if (t => (Duration_ << 16))                     ' if we have elapsed duration, possible state change
                 if (State_ < 3)                             ' L1 -> L2, L2 -> L3

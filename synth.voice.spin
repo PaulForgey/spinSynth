@@ -11,21 +11,24 @@ CON
     Patch_BendRange         = 2
     Patch_Cutoff            = 3
     Patch_Resonance         = 4
+    Patch_LFO_Wave          = 5
+    Patch_LFO_Rate          = 6
 
-    Patch_Op                = 5             ' offset to first operator
+    Patch_Op                = 7             ' offset to first operator
 
     Patch_Osc               = 0             ' offset inside operator to oscillator
-    Patch_OscWords          = 7
+    Patch_OscWords          = 8
 
     Patch_Level             = 0
     Patch_Velocity          = 1
     Patch_Wheel             = 2
-    Patch_Frequency         = 3
-    Patch_Multiplier        = 4
-    Patch_Detune            = 5
-    Patch_Wave              = 6
+    Patch_LFO               = 3
+    Patch_Frequency         = 4
+    Patch_Multiplier        = 5
+    Patch_Detune            = 6
+    Patch_Wave              = 7
 
-    Patch_Env               = 7             ' offset inside operator to envelope
+    Patch_Env               = 8             ' offset inside operator to envelope
     Patch_EnvWords          = 9
 
     Patch_R1                = 0
@@ -46,7 +49,8 @@ CON
     Freq_C10                = $6132         ' frequency of C10 (midi $78)
 
 OBJ
-    env[4]  : "synth.env"
+    env[Patch_Ops]  : "synth.env"
+    lfo             : "synth.lfo"
 
 VAR
     LONG    VoicePtr_                       ' long pointer to allocated oscillator parameters
@@ -57,7 +61,6 @@ VAR
     
     LONG    Frequency_[Patch_Ops]           ' variable frequecy (in cents) of oscillator if pitch bend applies to it
     LONG    Bend_                           ' last pitch bend state
-    BYTE    Wheel_                          ' last modulation wheel state
     BYTE    Key_                            ' note being played
     BYTE    KeyDown_                        ' key down state
     BYTE    Playing_                        ' playing state (depending on pedal, is not simply KeyDown_)
@@ -82,7 +85,7 @@ WheelPtr:   byte pointer to modulation wheel state
     repeat i from 0 to Patch_Ops - 1
         env[i].Init(@LONG[VoicePtr_][i * 4], @WORD[PatchPtr][Patch_Op + Patch_Env + Patch_OpWords * i])
 
-PUB Advance | c, op, updateBend, updateWheel
+PUB Advance | c, op, l, updateBend
 {
 Idle state update.
 
@@ -97,19 +100,15 @@ Advance envelopes in time
         updateBend := TRUE
     else
         updateBend := FALSE
-        
-    c := Wheel
-    if (c <> Wheel_)
-        Wheel_ := c
-        updateWheel := TRUE
-    else
-        updateWheel := FALSE
-                
+
+    l := lfo.Value
+
     repeat op from 0 to Patch_Ops-1
         if (updateBend AND c := Frequency_[op])
             SetFrequency(op, BentFrequencyForIndex(op, c))
-        if (updateWheel)
-            env[op].SetWheel((WheelSense(op) * Wheel_) >> 9)
+
+        c := WheelSense(Op) * Wheel + ((LFOSense(Op) * l) ~> 9)
+        env[op].Modulate(c)
         env[op].Advance
 
 PRI UpdatePedal | op
@@ -135,6 +134,9 @@ Enter envelope key-down states with velocity scale
     ' set last known pitch bend state
     Bend_ := PitchBend
     
+    ' LFO
+    lfo.Set(LFO_Wave, LFO_Rate)
+
     ' key down each envelope
     repeat op from 0 to Patch_Ops - 1
         OpDown(op, K, V)
@@ -237,6 +239,18 @@ Set oscillator Op to frequency F (which is actually a 16 bit value)
     LONG[VoicePtr_][Op * 4] := F
 
 ' patch accessors
+PRI LFO_Wave
+{
+LFO Wave
+}
+    return WORD[PatchPtr_][Patch_LFO_Wave]
+
+PRI LFO_Rate
+{
+LFO Rate
+}
+    return WORD[PatchPtr_][Patch_LFO_Rate]
+
 PRI Level(Op)
 {
 Configured level, 0-$200
@@ -254,6 +268,12 @@ PRI WheelSense(Op)
 Modulation wheel sensitivity, 0-$200
 }
     return WORD[PatchPtr_][Patch_Op + Patch_OpWords * Op + Patch_Wheel]
+
+PRI LFOSense(Op)
+{
+LFO sensitivity, 0-$200
+}
+    return WORD[PatchPtr_][Patch_Op + Patch_OpWords * Op + Patch_LFO]
 
 PRI Multiplier(Op)
 {
@@ -295,23 +315,23 @@ N: note 0-13199
     ' now apply multiplier
     f := (f * Multiplier(Op)) >> 8
 {{
-                            TERMS OF USE: MIT License                                                           
+                            TERMS OF USE: MIT License
 
- Permission is hereby granted, free of charge, to any person obtaining a copy
- of this software and associated documentation files (the "Software"), to deal
- in the Software without restriction, including without limitation the rights
- to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- copies of the Software, and to permit persons to whom the Software is
- furnished to do so, subject to the following conditions:
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
 
- The above copyright notice and this permission notice shall be included in
- all copies or substantial portions of the Software.
+The above copyright notice and this permission notice shall be included in
+all copies or substantial portions of the Software.
 
- THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,ARISING FROM,
- OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
- THE SOFTWARE.
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+THE SOFTWARE.
 }}

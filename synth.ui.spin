@@ -15,9 +15,10 @@ CON
     Type_Detune         = 6 ' detuning from -256 to 255 scaled from $1ff to $ff
     Type_Feedback       = 7 ' 0-19 with value being 19-displayed
     Type_Algo           = 8 ' algorithm selection, which also updates graphical drawing
-    Type_Wave           = 9 ' phase mask 0-$1fff
-    Type_Button         =10 ' button with no displayed value, activated on adjust(1)
-    Type_Combo          =11 ' button with displayed 9 bit hex value, activated on adjust(1), adjusted in units on adjust(-$10 or $10)
+    Type_Wave           = 9 ' LFO waveform 0-4 (sine, square, triangle, saw up, saw down)
+    Type_Mask           =10 ' phase mask 0-$1fff
+    Type_Button         =11 ' button with no displayed value, activated on adjust(1)
+    Type_Combo          =12 ' button with displayed 9 bit hex value, activated on adjust(1), adjusted in units on adjust(-$10 or $10)
 
 OBJ
     vga         : "synth.vga"
@@ -186,14 +187,11 @@ Adjust current selection by -$10, -1, 1, or $10
             Type_Feedback:
                 v := AdjustFeedback(v, D)
 
-            Type_Algo:
+            Type_Algo, Type_Wave, Type_Op:
                 v := AdjustOne(v, D)
 
-            Type_Wave:
-                v := AdjustWave(v, D)
-
-            Type_Op:
-                v := AdjustOne(v, D)
+            Type_Mask:
+                v := AdjustMask(v, D)
 
             Type_Button:
                 ' nothing
@@ -246,6 +244,9 @@ Update display of field's value
         Type_Algo:
             DisplayAlgo(v)
 
+        Type_Wave:
+            DisplayWave(v)
+
         Type_Button:
             DisplayButton(v)
 
@@ -287,6 +288,9 @@ Limit a proposed new value according to type
             maxValue := 12
 
         Type_Wave:
+            maxValue := 4
+
+        Type_Mask:
             maxValue := $1fff
 
         Type_Detune:
@@ -461,6 +465,26 @@ Type_Op::Display
     DisplayStr_[3] := LookupZ(V : "1".."4")
     graphics.SelectOperator(V)
 
+PRI DisplayWave(V)
+{
+Type_Wave::Display
+}
+    case V
+        0:      ' sine
+            ByteMove(@DisplayStr_, String("Sine"), 5)
+
+        1:      ' square
+            ByteMove(@DisplayStr_, String(129, 134, 129, 134), 5)
+
+        2:      ' triangle
+            ByteMove(@DisplayStr_, String(130, 133, 130, 133), 5)
+
+        3:      ' saw up
+            ByteMove(@DisplayStr_, String(130, 130, 130, 130), 5)
+
+        4:      ' saw down
+            ByteMove(@DisplayStr_, String(133, 133, 133, 133), 5)
+
 PRI DisplayDetune(V)
 {
 Type_Detune::Display
@@ -532,9 +556,9 @@ Type_Combo::Display
     FormatNumber(@DisplayStr_[0], V, 3, $10, " ")
     DisplayStr_[3] := 7
 
-PRI AdjustWave(V, D) | e
+PRI AdjustMask(V, D) | e
 {
-Type_Wave::Adjust
+Type_Mask::Adjust
 }
     if (D < -1) OR (D > 1)
         e := >|V
