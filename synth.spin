@@ -68,7 +68,9 @@ VAR
     '
     BYTE    Knob_[3]                            ' rotational encoder status
     BYTE    LastVoice_                          ' last voice allocated
-    
+    BYTE    Key2_                               ' in mono mode, keep track of two keys
+    BYTE    Velocity_
+
 PUB Main | scopePtr, i, j
 {
 Main loop of everything
@@ -424,12 +426,18 @@ Key down
         ' some devices send key down with 0 velocity for key up
         OnNoteOff(Key)
         return
-    
+
     Velocity #>= MinVelocity_
     Velocity <#= MaxVelocity_
-    
+
     i := FindVoiceForKey(Key)
     v[i].Down(Key, Velocity, Portamento_)
+
+    if Portamento_
+        ' if we aren't already keeping track of one key, keep track of a second
+        if NOT Key2_
+            Key2_ := $80 | Key
+        Velocity_ := Velocity
 
 PRI OnNoteOff(Key) | i
 {
@@ -437,10 +445,25 @@ Key up
 
 velocity information for key up is ignored
 }
-    repeat i from 0 to 7
-        if v[i].Key == Key
-            v[i].Up
-            return
+    if Portamento_
+        i := v[0].Key
+        if (v[0].Playing) AND (i <> Key)
+            ' what was released is not what is playing, so note what is playing
+            Key2_ := ($80 | i)
+        elseif (i == Key)
+            ' what was release is what is playing
+            if Key2_ AND (Key2_ & $7f <> Key)
+                ' go back to the other key
+                v[0].Down(Key2_ & $7f, Velocity_, Portamento_)
+            else
+                ' there is no other key, or we released it
+                v[0].Up
+                Key2_ := 0
+    else
+        repeat i from 0 to 7
+            if v[i].Key == Key
+                v[i].Up
+                return
 
 PRI OnControlChange(Control, Value)
 {

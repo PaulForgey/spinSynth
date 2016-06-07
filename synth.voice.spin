@@ -84,6 +84,8 @@ WheelPtr:   byte pointer to modulation wheel state
     BendPtr_ := BendPtr
     WheelPtr_ := WheelPtr
 
+    Key_ := $80
+
     ' each oscillator has an attached envelope
     repeat i from 0 to Patch_Ops - 1
         env[i].Init(@LONG[VoicePtr_][i * 4], @WORD[PatchPtr][Patch_Op + Patch_Env + Patch_OpWords * i])
@@ -135,7 +137,6 @@ Enter envelope key-down states with velocity scale
 }
     Key_ := K
     KeyDown_ := TRUE
-    Playing_ := TRUE
     
     ' set last known pitch bend state
     Bend_ := PitchBend
@@ -154,6 +155,8 @@ Enter envelope key-down states with velocity scale
     ' key down each envelope
     repeat op from 0 to Patch_Ops - 1
         OpDown(op, K, V, P)
+
+    Playing_ := TRUE
 
 PUB Key
 {
@@ -207,7 +210,7 @@ V:  Velocity $01-$7f
         if P
             Slide_[Op] := n         ' target portamento frequency
 
-        if (NOT P) OR (NOT Frequency_[Op])
+        if (NOT P) OR (NOT Frequency_[Op]) OR (NOT Playing_)
             Frequency_[Op] := n     ' currently playing bendable frequency
 
         SetFrequency(Op, BentFrequency(Op)) ' set the actual frequency
