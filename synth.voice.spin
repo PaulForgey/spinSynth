@@ -60,7 +60,10 @@ VAR
     LONG    WheelPtr_                       ' byte pointer to modulation wheel state
     
     LONG    Frequency_[Patch_Ops]           ' variable frequecy (in cents) of oscillator if pitch bend applies to it
+    LONG    Slide_[Patch_Ops]               ' portamento slide to frequency
     LONG    Bend_                           ' last pitch bend state
+    LONG    Rate_                           ' portamento slide rate (0 for none)
+    LONG    Clk_                            ' portamento clock sync
     BYTE    Key_                            ' note being played
     BYTE    KeyDown_                        ' key down state
     BYTE    Playing_                        ' playing state (depending on pedal, is not simply KeyDown_)
@@ -85,7 +88,7 @@ WheelPtr:   byte pointer to modulation wheel state
     repeat i from 0 to Patch_Ops - 1
         env[i].Init(@LONG[VoicePtr_][i * 4], @WORD[PatchPtr][Patch_Op + Patch_Env + Patch_OpWords * i])
 
-PUB Advance | c, op, l, updateBend
+PUB Advance | c, op, l, updateFreq
 {
 Idle state update.
 
@@ -95,17 +98,17 @@ Advance envelopes in time
     UpdatePedal
     
     c := PitchBend
-    if (c <> Bend_)
+    if (c <> Bend_) OR Rate_
         Bend_ := c
-        updateBend := TRUE
+        updateFreq := TRUE
     else
-        updateBend := FALSE
+        updateFreq := FALSE
 
     l := lfo.Value
 
     repeat op from 0 to Patch_Ops-1
-        if (updateBend AND c := Frequency_[op])
-            SetFrequency(op, BentFrequencyForIndex(op, c))
+        if (updateFreq AND c := Frequency_[op])
+            SetFrequency(op, BentFrequency(op))
 
         c := WheelSense(Op) * Wheel + ((LFOSense(Op) * l) ~> 9)
         env[op].Modulate(c)
@@ -121,9 +124,12 @@ If sustain pedal is up, key-up envelope states as needed
         repeat op from 0 to Patch_Ops - 1
             env[op].Up
 
-PUB Down(K, V) | op
+PUB Down(K, V, P) | op
 {
 Key down
+K: midi note $00:$7f
+V: velocity $00:$7f
+P: portamento 0 (none) : $200 (slowest)
 
 Enter envelope key-down states with velocity scale
 }
@@ -137,9 +143,17 @@ Enter envelope key-down states with velocity scale
     ' LFO
     lfo.Set(LFO_Wave, LFO_Rate)
 
+    ' if portamento is in effect, set the target slide value
+    if P
+        P <<= 2
+        Rate_ := (P * P) + $200 ' same scheme LFO uses
+        Clk_ := CNT
+    else
+        Rate_ := 0
+
     ' key down each envelope
     repeat op from 0 to Patch_Ops - 1
-        OpDown(op, K, V)
+        OpDown(op, K, V, P)
 
 PUB Key
 {
@@ -169,7 +183,7 @@ Set oscillator levels to 0
     repeat op from 0 to Patch_Ops-1
         env[op].Silence
 
-PRI OpDown(Op, K, V) | n, s
+PRI OpDown(Op, K, V, P) | n, s
 {
 Key down state per operator
 
@@ -187,11 +201,16 @@ V:  Velocity $01-$7f
     n += Detune(Op)                 ' detune as configured
 
     if (s => $180)
-        Frequency_[Op] := 0         ' note a bendable frequency
+        Frequency_[Op] := 0         ' not a bendable frequency
         SetFrequency(Op, FrequencyForIndex(Op, n)) ' set the actual frequency
     else
-        Frequency_[Op] := n         ' bendable frequency
-        SetFrequency(Op, BentFrequencyForIndex(Op, n)) ' set the acutal frequency
+        if P
+            Slide_[Op] := n         ' target portamento frequency
+
+        if (NOT P) OR (NOT Frequency_[Op])
+            Frequency_[Op] := n     ' currently playing bendable frequency
+
+        SetFrequency(Op, BentFrequency(Op)) ' set the actual frequency
 
     ' velocity scale the envelope (todo: this better)
     V := $7F - V
@@ -202,10 +221,22 @@ V:  Velocity $01-$7f
     env[Op].Down(n)                 ' enter key-down state
 
 
-PRI BentFrequencyForIndex(Op, n)
+PRI BentFrequency(Op) | p, n, s
 {
-For a note value in cents, return an actual frequency per configured multiplier and pitch bend state
+For a note value in cents, return an actual frequency per configured multiplier and pitch bend/portamento state
 }
+    n := Frequency_[Op]
+
+    if Rate_
+        s := Slide_[Op]
+        p := ((CNT - Clk_) / Rate_) & $3fff
+
+        if s < n
+            n := (n - p) #> s
+        elseif s > n
+            n := (n + p) <# s
+        Frequency_[Op] := n
+
     n += (Bend_ * 1200) ~> 12
     return FrequencyForIndex(Op, n)
 

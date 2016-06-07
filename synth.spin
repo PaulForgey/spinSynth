@@ -55,6 +55,7 @@ VAR
     ' Global configuraiton settings
     WORD    MinVelocity_                        ' minimum key down velocity
     WORD    MaxVelocity_                        ' maximum key down velocity
+    WORD    Portamento_                         ' 0=polyphonic, larger is slower
 
     ' Patch
     WORD    Patch_[v#Patch_Words]               ' the actual patch data being played
@@ -155,6 +156,7 @@ after setting up the UI, do things in this order:
     PatchEndUI_ := ui.BeginGroup(String("Global Settings"))
     ui.GroupItem(String("Minimum velocity"), @MinVelocity_, ui#Type_Raw)
     ui.GroupItem(String("Maximum velocity"), @MaxVelocity_, ui#Type_Raw)
+    ui.GroupItem(String("Portamento"), @Portamento_, ui#Type_Pct)
     ui.EndGroup
 
     ' do not leave the non-selectable group selected
@@ -427,7 +429,7 @@ Key down
     Velocity <#= MaxVelocity_
     
     i := FindVoiceForKey(Key)
-    v[i].Down(Key, Velocity)
+    v[i].Down(Key, Velocity, Portamento_)
 
 PRI OnNoteOff(Key) | i
 {
@@ -479,6 +481,10 @@ PRI FindVoiceForKey(Key) | i, j
 {
 Allocate a voice to handle playing a note
 }
+    ' if we are not being polyphonic, simply return 0
+    if Portamento_
+        return 0
+
     ' first, check for any existing voices already playing/having played it
     repeat i from 0 to 7
         if v[i].Key == Key
