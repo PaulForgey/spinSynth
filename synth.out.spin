@@ -16,7 +16,7 @@ VAR
     LONG    Params_[7]
 
     LONG    Profile_
-    LONG    Filter_[12]              ' two stage of Butterworth filter coefficients (gain, b0, b1, gain, b0, b1) (x2 for atomic swap)
+    LONG    Filter_[12]             ' two stage of Butterworth filter coefficients (gain, b0, b1, gain, b0, b1) (x2 for atomic swap)
     LONG    FilterPtr_
     BYTE    Scope_[480]             ' oscilliscope date
     
@@ -279,7 +279,12 @@ entry
 
     mov cnt_d, CNT                          ' start measuring clock ticks to produce next sample
 
-    shr out, #24                            ' scope uses 8 bit unsigned valuue
+    xor out, sign                           ' zoom in a bit and limit for scope, which uses 8 bit unsigned value
+    maxs out, scope_high
+    mins out, scope_low
+    shr out, #21
+    xor out, #$80
+
     cmp sptr, #0 wz                         ' trigger?
     test out, #$80 wc
     if_z_and_nc jmp #:skip
@@ -391,6 +396,8 @@ cnt_d           long    0
 high            long    $000f_ffff
 low             long    $fff0_0000
 high32s         long    $7fff_ffff
+scope_high      long    $1fff_ffff
+scope_low       long    $e000_0000
 
 profile_ptr     res     1
 scope_ptr       res     1
