@@ -307,9 +307,9 @@ oscillator
     rdlong env, input                   ' read current envelope level
     
     sub level, env                      ' put a slope on envelope movement
-    sar level, #2 wc
+    sar level, #1 wc
 
-    if_c cmpsub level, minus_one        ' level = (level - env) / 4
+    if_c cmpsub level, minus_one        ' level = (level - env) / 2
     add env, level                      ' env += level
     
     shl mod, #1                         ' scale input

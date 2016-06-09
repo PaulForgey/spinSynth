@@ -65,8 +65,8 @@ M: Modulation +/- $10000
 
     ' outside of persistent envelope state, add in modulation
     M := M #> -$10000 <# $10000
-    M := (M * (L >> 3)) ~> 13  ' scale modulation factor by the envelope state
-    L += M              ' then add to or subtract from it
+    M := (M * (L >> 3)) ~> 13   ' scale modulation factor by the envelope state
+    L += M                      ' then add to or subtract from it
 
     L := L #> 0 <# Env_Max
 
@@ -81,14 +81,14 @@ M: Modulation +/- $10000
         L <<= (12 - e)
     L := (e << 16) | WORD[$c000][L & $7ff]
 
-    ' at this point, we are in range 0-$f_ffff, minimum value $1_0000. Scale it to 0-$8800 and invert
-    ' shift to the goofy bit arrangement needed by the oscillator (starting from 31 down), and add an
-    ' extra $100 to the final result 
+    ' at this point, we are in range 0-$f_ffff. Scale it to 0-$8800 and invert.
+    ' Shift to the goofy bit arrangement needed by the oscillator (starting from 31 down).
+    ' Add an extra $100 to the final result.
     L := (((L ^ $f_ffff) * $880) + $1000) >> 1
 
     LONG[OscPtr_][1] := L
 
-PRI Transition(S) | rate
+PRI Transition(S) | rate, level
 {
 Transiation state S:
 0- Key down
@@ -103,7 +103,9 @@ Transiation state S:
     Base_ := Env_   ' level coming from
 
     if S < 5
-        Delta_ := (EnvLevel(S) * Scale_) - Base_
+        level := EnvLevel(S)
+        level := ((level * level) * Scale_) >> 9
+        Delta_ := level - Base_
         rate := $200 - EnvRate(S)
         Duration_ := ((rate * rate) >> 3) #> 1
     else
@@ -135,7 +137,7 @@ Set total modulation value (wheel+LFO) +/- $10000
 
 PUB Down(Scale)
 {
-Enter key down state with scale 0-$200 (usually 0-$200) by transitioning to state 0
+Enter key down state with scale 0-$200 by transitioning to state 0
 }
     Scale_ := Scale
     Transition(0)

@@ -348,6 +348,7 @@ N: note 0-13199
     f := f >> (16 + (10 - octave))
     ' now apply multiplier
     f := (f * Multiplier(Op)) >> 8
+
 {{
                             TERMS OF USE: MIT License
 
