@@ -393,7 +393,7 @@ Type_Freq::Display
         V /= 12
         V <#= 10
         ByteMove(@DisplayStr_, p, 2)
-        FormatNumber(@DisplayStr_[2], V, 2, $10, "0")
+        FormatNumber(@DisplayStr_[2], V, 2, 10, " ")
 
 PRI AdjustFreq(V, D)
 {
