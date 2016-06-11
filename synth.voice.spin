@@ -8,16 +8,23 @@ See end of file for terms of use
 CON
     Patch_Feedback          = 0             ' global
     Patch_Algorithm         = 1
-    Patch_BendRange         = 2
-    Patch_Cutoff            = 3
-    Patch_Resonance         = 4
-    Patch_LFO_Wave          = 5
-    Patch_LFO_Rate          = 6
 
-    Patch_Op                = 7             ' offset to first operator
+    Patch_LFO_Wave          = 2
+    Patch_LFO_Frequency     = 3
+    Patch_LFO_R1            = 4
+    Patch_LFO_L1            = 5
+    Patch_LFO_R2            = 6
+    Patch_LFO_L2            = 7
+    Patch_LFO_R3            = 8
+    Patch_LFO_L3            = 9
+    Patch_LFO_R4            = 10
+    Patch_LFO_L4            = 11
+    Patch_LFO_Loop          = 12
+
+    Patch_Op                = 13            ' offset to first operator
 
     Patch_Osc               = 0             ' offset inside operator to oscillator
-    Patch_OscWords          = 8
+    Patch_OscWords          = 7
 
     Patch_Level             = 0
     Patch_Velocity          = 1
@@ -26,9 +33,8 @@ CON
     Patch_Frequency         = 4
     Patch_Multiplier        = 5
     Patch_Detune            = 6
-    Patch_Wave              = 7
 
-    Patch_Env               = 8             ' offset inside operator to envelope
+    Patch_Env               = 7             ' offset inside operator to envelope
     Patch_EnvWords          = 9
 
     Patch_R1                = 0
@@ -88,7 +94,8 @@ WheelPtr:   byte pointer to modulation wheel state
 
     ' each oscillator has an attached envelope
     repeat i from 0 to Patch_Ops - 1
-        env[i].Init(@LONG[VoicePtr_][i * 4], @WORD[PatchPtr][Patch_Op + Patch_Env + Patch_OpWords * i])
+        env[i].Init(@LONG[VoicePtr_][i * 4 + 1], @WORD[PatchPtr][Patch_Op + Patch_Env + Patch_OpWords * i])
+    lfo.Init(@WORD[PatchPtr][Patch_LFO_R1])
 
 PUB Advance | c, op, l, updateFreq
 {
@@ -123,6 +130,7 @@ If sustain pedal is up, key-up envelope states as needed
 }
     if (Playing_ AND NOT (KeyDown_ OR Pedal))
         Playing_ := FALSE
+        lfo.Up
         repeat op from 0 to Patch_Ops - 1
             env[op].Up
 
@@ -142,7 +150,7 @@ Enter envelope key-down states with velocity scale
     Bend_ := PitchBend
     
     ' LFO
-    lfo.Set(LFO_Wave, LFO_Rate)
+    lfo.Set(LFO_Wave, LFO_Frequency)
 
     ' if portamento is in effect, set the target slide value
     if P
@@ -185,6 +193,7 @@ Set oscillator levels to 0
 }
     repeat op from 0 to Patch_Ops-1
         env[op].Silence
+    lfo.Silence
 
 PRI OpDown(Op, K, V, P) | n, s
 {
@@ -279,11 +288,11 @@ LFO Wave
 }
     return WORD[PatchPtr_][Patch_LFO_Wave]
 
-PRI LFO_Rate
+PRI LFO_Frequency
 {
 LFO Rate
 }
-    return WORD[PatchPtr_][Patch_LFO_Rate]
+    return WORD[PatchPtr_][Patch_LFO_Frequency]
 
 PRI Level(Op)
 {

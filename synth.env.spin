@@ -9,7 +9,7 @@ CON
     Env_Max     = $3_ffff
 
 VAR
-    LONG    OscPtr_         ' long pointer to oscillator parameters
+    LONG    ValuePtr_       ' long pointer to envelope value
     LONG    EnvPtr_         ' word pointer to envelope: (rate,level) *4, entering 4th when key released +1 bool (looping)
 
     LONG    Duration_       ' duration, in units of system clock >> 16
@@ -22,13 +22,13 @@ VAR
     WORD    Scale_          ' scale of entire envelope
     BYTE    State_          ' envelope state (0-5, 0=Init, 1=L1..4=L4, 5=L4 finished)
 
-PUB Init(OscPtr, EnvPtr)
+PUB Init(ValuePtr, EnvPtr)
 {
 Initialize envelope
-OscPtr: long pointer to oscillator parameters
+ValuePtr: (optional) long pointer to envelope value
 EnvPtr: word pointer to envelope
 }
-    OscPtr_ := OscPtr
+    ValuePtr_ := ValuePtr
     EnvPtr_ := EnvPtr
     Duration_ := 1
     
@@ -63,6 +63,9 @@ M: Modulation +/- $10000
     ' make note of where we are at
     Env_ := L
 
+    if NOT ValuePtr_
+        return
+
     ' outside of persistent envelope state, add in modulation
     M := M #> -$10000 <# $10000
     M := (M * (L >> 3)) ~> 13   ' scale modulation factor by the envelope state
@@ -86,7 +89,7 @@ M: Modulation +/- $10000
     ' Add an extra $100 to the final result.
     L := (((L ^ $f_ffff) * $880) + $1000) >> 1
 
-    LONG[OscPtr_][1] := L
+    LONG[ValuePtr_] := L
 
 PRI Transition(S) | rate, level
 {
@@ -181,6 +184,8 @@ within this scope, state 2 is also terminal if not looping. Regarless, state 3 n
                     Transition(2)
                 elseif (State_ == 4)
                     Transition(5)                           ' L4 -> Done
+
+    return Env_
 
 {{
                             TERMS OF USE: MIT License                                                           

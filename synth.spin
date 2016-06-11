@@ -27,7 +27,6 @@ VAR
     LONG    OscOutputs_[4]                      ' output per oscillator cog
     LONG    OscTriggers_[4]                     ' trigger per oscillator cog
     LONG    OscInputs_[128]                     ' 4 cogs * 8 oscillators * 4 parameters = 128 longs total
-    LONG    WavePtrs_[v#Patch_Ops]              ' phase masks
 
     ' UI control IDs and values
     '
@@ -43,9 +42,6 @@ VAR
     WORD    Waste_                              ' buttons annoyingly need to point to a value
     WORD    PatchStartUI_                       ' controls => this value affect the patch
     WORD    PatchEndUI_                         ' controls < this value affect the patch
-    WORD    CutoffUI_                           ' LPF cutoff control
-    WORD    ResonanceUI_                        ' LPF resonance control
-    WORD    WaveUI_                             ' phase mask control
 
     ' State read from keyboard and then picked up after in non-MIDI loop
     BYTE    Pedal_                              ' control $40 value
@@ -56,6 +52,7 @@ VAR
     WORD    MinVelocity_                        ' minimum key down velocity
     WORD    MaxVelocity_                        ' maximum key down velocity
     WORD    Portamento_                         ' 0=polyphonic, larger is slower
+    WORD    BendRange_                          ' $10 per octave
 
     ' Patch
     WORD    Patch_[v#Patch_Words]               ' the actual patch data being played
@@ -81,12 +78,9 @@ after setting up the UI, do things in this order:
 }
     midi.Start(MIDI_Pin)
 
-    repeat i from 0 to v#Patch_Ops-1
-        WavePtrs_[i] := PatchOscParamPtr(i, v#Patch_Wave)
-
     ' 4 oscillator cogs
     repeat i from 0 to 3
-        osc[i].Start(@OscInputs_[i * 4 * 8], PatchParamPtr(v#Patch_Algorithm), @WavePtrs_, PatchParamPtr(v#Patch_Feedback))
+        osc[i].Start(@OscInputs_[i * 4 * 8], PatchParamPtr(v#Patch_Algorithm), PatchParamPtr(v#Patch_Feedback))
         OscOutputs_[i] := osc[i].OutputPtr
         OscTriggers_[i] := osc[i].TriggerPtr
 
@@ -103,6 +97,7 @@ after setting up the UI, do things in this order:
     ' set up default global configuration values
     MinVelocity_ := $01
     MaxVelocity_ := $7f
+    BendRange_ := $20
 
     ' load patch 0 from storage
     OnLoadPatch(0)
@@ -116,17 +111,23 @@ after setting up the UI, do things in this order:
     ui.EnableItem(SaveButton_, FALSE)
     ui.EndGroup
 
-    ui.BeginGroup(String("Voice"))
-    PatchStartUI_ := ui.GroupItem(String("Algorithm"), PatchParamPtr(v#Patch_Algorithm), ui#Type_Algo)
-    ui.GroupItem(String("Feedback"), PatchParamPtr(v#Patch_Feedback), ui#Type_Feedback)
-    CutoffUI_ := ui.GroupItem(String("Low Pass"), PatchParamPtr(v#Patch_Cutoff), ui#Type_Raw)
-    ResonanceUI_ := ui.GroupItem(String("Resonance"), PatchParamPtr(v#Patch_Resonance), ui#Type_Raw)
-    ui.GroupItem(String("Pitch Bend"), PatchParamPtr(v#Patch_BendRange), ui#Type_Raw)
+    ui.BeginGroup(String("LFO"))
+    PatchStartUI_ := ui.GroupItem(String("Waveform"), PatchParamPtr(v#Patch_LFO_Wave), ui#Type_Wave)
+    ui.GroupItem(String("Frequency"), PatchParamPtr(v#Patch_LFO_Frequency), ui#Type_Pct)
+    ui.GroupItem(String("1             Rate"), PatchParamPtr(v#Patch_LFO_R1), ui#Type_Pct)
+    ui.GroupItem(String("             Level"), PatchParamPtr(v#Patch_LFO_L1), ui#Type_Pct)
+    ui.GroupItem(String("2             Rate"), PatchParamPtr(v#Patch_LFO_R2), ui#Type_Pct)
+    ui.GroupItem(String("             Level"), PatchParamPtr(v#Patch_LFO_L2), ui#Type_Pct)
+    ui.GroupItem(String("3             Rate"), PatchParamPtr(v#Patch_LFO_R3), ui#Type_Pct)
+    ui.GroupItem(String("             Level"), PatchParamPtr(v#Patch_LFO_L3), ui#Type_Pct)
+    ui.GroupItem(String("4             Rate"), PatchParamPtr(v#Patch_LFO_R4), ui#Type_Pct)
+    ui.GroupItem(String("             Level"), PatchParamPtr(v#Patch_LFO_L4), ui#Type_Pct)
+    ui.GroupItem(String("Loop"), PatchEnvParamPtr(0, v#Patch_LFO_Loop), ui#Type_Bool)
     ui.EndGroup
 
-    ui.BeginGroup(String("LFO"))
-    ui.GroupItem(String("Waveform"), PatchParamPtr(v#Patch_LFO_Wave), ui#Type_Wave)
-    ui.GroupItem(String("Rate"), PatchParamPtr(v#Patch_LFO_Rate), ui#Type_Pct)
+    ui.BeginGroup(String("Voice"))
+    ui.GroupItem(String("Algorithm"), PatchParamPtr(v#Patch_Algorithm), ui#Type_Algo)
+    ui.GroupItem(String("Feedback"), PatchParamPtr(v#Patch_Feedback), ui#Type_Feedback)
     ui.EndGroup
 
     ui.BeginGroup(String("Operators"))
@@ -138,7 +139,6 @@ after setting up the UI, do things in this order:
     ui.GroupItem(String("Frequency"), PatchOscParamPtr(0, v#Patch_Frequency), ui#Type_Freq)
     ui.GroupItem(String("Multiplier"), PatchOscParamPtr(0, v#Patch_Multiplier), ui#Type_Mult)
     ui.GroupItem(String("Detune"), PatchOscParamPtr(0, v#Patch_Detune), ui#Type_Detune)
-    WaveUI_ := ui.GroupItem(String("Phase Mask"), PatchOscParamPtr(0, v#Patch_Wave), ui#Type_Mask)
     ui.EndGroup
 
     ui.BeginGroup(String("Envelopes"))
@@ -159,6 +159,7 @@ after setting up the UI, do things in this order:
     ui.GroupItem(String("Minimum velocity"), @MinVelocity_, ui#Type_Raw)
     ui.GroupItem(String("Maximum velocity"), @MaxVelocity_, ui#Type_Raw)
     ui.GroupItem(String("Portamento"), @Portamento_, ui#Type_Pct)
+    ui.GroupItem(String("Pitch Bend"), @BendRange_, ui#Type_Raw)
     ui.EndGroup
 
     ' do not leave the non-selectable group selected
@@ -260,14 +261,6 @@ Control: 0-2
         EnvelopeUI_:
             OnEnvelopeChange(EnvelopeSel_)
 
-        CutoffUI_, ResonanceUI_:
-            OnFilter
-            Dirty_ := TRUE
-
-        WaveUI_:
-            OnWave
-            Dirty_ := TRUE
-
         other:
             ' activity elsewhere soils the patch
             if button => PatchStartUI_ AND button < PatchEndUI_
@@ -324,10 +317,6 @@ Load a patch
         LoadPatchNum_ := PatchNum
         ' update the UI with new values
         ui.Refresh
-        ' update LPF
-        OnFilter
-        ' update Wave
-        OnWave
         ' not dirty
         Dirty_ := FALSE
         ui.SetStatus(String(" "))
@@ -351,8 +340,6 @@ Swap patch with alternate values (initially the loaded ones)
         PatchSwap_[w] := n
 
     ui.Refresh
-    OnFilter
-    OnWave
     Dirty_ := TRUE ' could be smarter here
 
 PRI OnOperatorChange(Sel) | i
@@ -377,25 +364,6 @@ Copy selected envelope parameters to all the other envelopes
         if i <> EnvelopeSel_
             repeat j from 0 to v#Patch_EnvWords-1
                 WORD[PatchEnvParamPtr(i, j)] := WORD[PatchEnvParamPtr(EnvelopeSel_, j)]
-
-PRI OnFilter | c, r, e
-{
-Update LPF
-}
-    c := WORD[PatchParamPtr(v#Patch_Cutoff)]
-    r := WORD[PatchParamPtr(v#Patch_Resonance)] 
-
-    e := WORD[$d000][(c & $3f) << 5] | $1_0000      ' turn 0-$200 range into 8 octave exponential
-    c >>= 6                                         ' c becomes octave (non fractional part of exponent)
-    e >>= 5 + (8 - c)                               ' shift it down to range 0-$800
-
-    out.SetFilter(e, r)
-
-PRI OnWave
-{
-Update Wave
-}
-    WavePtrs_[0] ^= 1
 
 PRI OnMidi(M)
 {
@@ -484,7 +452,7 @@ Value reported is +/- $1000 * octave, where octave can be fractional. e.g., a ha
     if Value > $2000
         ++Value
     Value -= $2000
-    Bend_ := (Value * WORD[PatchParamPtr(v#Patch_BendRange)]) ~> 5
+    Bend_ := (Value * BendRange_) ~> 5
 
 PRI OnWheel(Value)
 {

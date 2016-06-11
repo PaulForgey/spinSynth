@@ -23,7 +23,7 @@ CON
     
 VAR
     LONG    Cog_
-    LONG    Params_[9]
+    LONG    Params_[8]
 
     LONG    Profile_                                    ' updated with -clock count per pass
     BYTE    Trigger_                                    ' set to non-0 to trigger output, non-LSB specifies offset within buffer
@@ -50,12 +50,11 @@ return number of clock cycles per last frame redered
 }
     return -Profile_
 
-PUB Start(InputsPtr, AlgoPtr, WavePtr, FeedbackPtr) | o
+PUB Start(InputsPtr, AlgoPtr, FeedbackPtr) | o
 {
 start an oscillator cog
 InputsPtr:  long pointer to 32 longs (4 values per 8 oscillators)
 AlgoPtr:    byte pointer to alogirthm selection, 0 based
-WavePtr:    long pointer to array of 4 word pointers which mask phase per oscillator/voice (0 = sine wave)
 FeedbackPtr:byte pointer to feedback shift value, higher is lower, 16 turns it off completely
 }
     Stop
@@ -65,13 +64,12 @@ FeedbackPtr:byte pointer to feedback shift value, higher is lower, 16 turns it o
 
     Params_[0] := InputsPtr
     Params_[1] := AlgoPtr
-    Params_[2] := WavePtr
-    Params_[3] := FeedbackPtr
-    Params_[4] := tables.SinesPtr
-    Params_[5] := @Algs
-    Params_[6] := @Output_
-    Params_[7] := @Trigger_
-    Params_[8] := @Profile_
+    Params_[2] := FeedbackPtr
+    Params_[3] := tables.SinesPtr
+    Params_[4] := @Algs
+    Params_[5] := @Output_
+    Params_[6] := @Trigger_
+    Params_[7] := @Profile_
 
     return (Cog_ := cognew(@entry, @Params_) + 1)
     
@@ -92,8 +90,6 @@ entry
     add r0, #4
     rdlong alg_ptr, r0
     add r0, #4
-    rdlong wave_ptr_ptr, r0
-    add r0, #4
     rdlong feedback_ptr, r0
     add r0, #4
     rdlong sine_ptr, r0
@@ -108,7 +104,6 @@ entry
 
 wait
     mov cnt_d, CNT
-    mov r2, wave_ptr
 
     rdbyte r0, sync_ptr wz
 
@@ -130,11 +125,6 @@ wait
     cmp alg, r0 wz
     if_nz call #change_alg
 
-    rdlong wave_ptr, wave_ptr_ptr
-
-    cmp wave_ptr, r2 wz
-    if_nz call #change_waves
-
 sample
     mov input, input_ptr                ' reset oscillator bank inputs
     mov out, #0                         ' reset current output sample
@@ -145,7 +135,6 @@ sample
 osc_0_in
     mov mod, zero
 
-    mov mask, waves+0
     mov t, osc_t+0
     call #oscillator
     mov osc_t+0, t
@@ -161,7 +150,6 @@ osc_0_out
 osc_1_in
     mov mod, zero
     
-    mov mask, waves+1
     mov t, osc_t+1    
     call #oscillator
     mov osc_t+1, t
@@ -177,7 +165,6 @@ osc_1_out
 osc_2_in
     mov mod, zero
 
-    mov mask, waves+2
     mov t, osc_t+2
     call #oscillator
     mov osc_t+2, t
@@ -199,21 +186,21 @@ osc_3_in
     mov fb3, r0
     sar mod, fb
 
-    mov mask, waves+3
     mov t, osc_t+3
     call #oscillator
     mov osc_t+3, t
-    
+
     ' oscillator 3 output
 osc_3_out
     add out, r0
     mov bus+3, r0
 
+    '===
+
     ' oscillator 4
 osc_4_in
     mov mod, zero
 
-    mov mask, waves+0
     mov t, osc_t+4
     call #oscillator
     mov osc_t+4, t
@@ -229,7 +216,6 @@ osc_4_out
 osc_5_in
     mov mod, zero
 
-    mov mask, waves+1
     mov t, osc_t+5
     call #oscillator
     mov osc_t+5, t
@@ -245,7 +231,6 @@ osc_5_out
 osc_6_in
     mov mod, zero
 
-    mov mask, waves+2
     mov t, osc_t+6
     call #oscillator
     mov osc_t+6, t
@@ -267,7 +252,6 @@ osc_7_in
     mov fb7, r0
     sar mod, fb
 
-    mov mask, waves+3
     mov t, osc_t+7
     call #oscillator
     mov osc_t+7, t
@@ -313,24 +297,24 @@ oscillator
     add env, level                      ' env += level
     
     shl mod, #1                         ' scale input
-    andn r0, mask                       ' bit crush the phase (before modulation)
+    add r0, mod                         ' modulate
 
     wrlong env, input                   ' write back updated envelope
 
-    add r0, mod                         ' modulate
     add input, #4
-
     shr env, #14                        ' scale envelope
+
     shr r0, #4                          ' whole number t
-
     test r0, half wz                    ' sign into z
+
     and r0, half_mask
-
     cmp quarter, r0 wc                  ' odd quarter?
-    negc r0, r0
 
+    negc r0, r0
     if_c and r0, quarter_mask
+
     add r0, sine_ptr                    ' sine table
+    ' [nop]
 
     rdword r0, r0                       ' r0=log(sin(r0))
 
@@ -460,32 +444,11 @@ read_alg_bus
 read_alg_bus_ret
     ret
 
-'*
-'* Update table of phase masks
-'*
-change_waves
-    mov r1, #waves                      ' copy to waves array
-    mov r0, wave_ptr_ptr                ' from here
-    mov c1, #4                          ' 4 of them
-:loop
-    rdlong r2, r0
-    movd :ind, r1
-    add r1, #1
-    rdword r2, r2
-    shl r2, #5
-:ind
-    mov 0-0, r2
-    add r0, #4
-    djnz c1, #:loop
-
-change_waves_ret
-    ret
 
 zero            long    0               ' read only, always 0
 nowhere         long    0               ' write only, discard
 out             long    0               ' audio bus output
 bus             long    0[8]            ' general purpose modulation paths
-waves           long    0[4]            ' phase masks
 
 alog_ptr        long    $d000
 
@@ -504,8 +467,6 @@ osc_t           long    0[8]
 
 input_ptr       res     1               ' frequency, level, 0, envelope (4 longs)
 alg_ptr         res     1
-wave_ptr        res     1
-wave_ptr_ptr    res     1
 feedback_ptr    res     1
 sine_ptr        res     1
 algs_ptr        res     1
@@ -527,7 +488,6 @@ c1              res     1
 input           res     1
 outp            res     1
 cnt_d           res     1
-mask            res     1
 
 Algs
 {{
@@ -780,23 +740,23 @@ BYTE    Bus_6,      Bus_Nowhere,Bus_5,          0
 BYTE    Bus_7,      Bus_Nowhere,Bus_6,          0
 
 {{
-                            TERMS OF USE: MIT License                                                           
+                            TERMS OF USE: MIT License
 
- Permission is hereby granted, free of charge, to any person obtaining a copy
- of this software and associated documentation files (the "Software"), to deal
- in the Software without restriction, including without limitation the rights
- to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- copies of the Software, and to permit persons to whom the Software is
- furnished to do so, subject to the following conditions:
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
 
- The above copyright notice and this permission notice shall be included in
- all copies or substantial portions of the Software.
+The above copyright notice and this permission notice shall be included in
+all copies or substantial portions of the Software.
 
- THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,ARISING FROM,
- OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
- THE SOFTWARE.
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+THE SOFTWARE.
 }}

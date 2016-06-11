@@ -17,7 +17,6 @@ DEPS=\
 	synth.midi.spin \
 	synth.ui.graphics.spin \
 	synth.osc.tables.spin \
-	synth.float.spin \
 	synth.lfo.spin
 
 all: $(TARGET).binary

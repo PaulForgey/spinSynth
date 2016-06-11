@@ -11,10 +11,19 @@ CON
     Wave_SawUp          = 3
     Wave_SawDown        = 4
 
+OBJ
+    env     : "synth.env"
+
 VAR
     LONG Clk_                   ' clock sync
     WORD F_                     ' frequency divider
     BYTE Wave_                  ' one of the Wave_ constants
+
+PUB Init(EnvPtr)
+{
+EnvPtr: long pointer to envelope parameters
+}
+    env.Init(0, EnvPtr)
 
 PUB Set(W, F)
 {
@@ -24,30 +33,44 @@ Set wave to W and frequency to F (0-$200)
     F := ($200 - F) #> 1
     F_ := (F * F) + $200
     Wave_ := W
+    env.Down($200)
 
-PUB Value | p
+PUB Up
+{
+Release envelope
+}
+    env.Up
+
+PUB Silence
+{
+Reset envelope
+}
+    env.Silence
+
+PUB Value | p, e
 {
 Get current oscillator value, range -$10000 to $10000
 }
     p := ((CNT - Clk_) / F_) & $1fff
+    e := env.Advance
     
     case Wave_
         Wave_Sine:
-            return Sine(p)
+            result := Sine(p)
 
         Wave_Square:
-            return Square(p)
+            result := Square(p)
 
         Wave_Triangle:
-            return Triangle(p)
+            result := Triangle(p)
 
         Wave_SawUp:
-            return SawUp(p)
+            result := SawUp(p)
 
         Wave_SawDown:
-            return SawDown(p)
+            result := SawDown(p)
 
-    return 0
+    result := (result * (e >> 4)) ~> 14
 
 PRI Sine(P) | s
     s := P & $1000
