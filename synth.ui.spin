@@ -16,9 +16,8 @@ CON
     Type_Feedback       = 7 ' 0-19 with value being 19-displayed
     Type_Algo           = 8 ' algorithm selection, which also updates graphical drawing
     Type_Wave           = 9 ' LFO waveform 0-4 (sine, square, triangle, saw up, saw down)
-    Type_Mask           =10 ' phase mask 0-$1fff
-    Type_Button         =11 ' button with no displayed value, activated on adjust(1)
-    Type_Combo          =12 ' button with displayed 9 bit hex value, activated on adjust(1), adjusted in units on adjust(-$10 or $10)
+    Type_Button         =10 ' button with no displayed value, activated on adjust(1)
+    Type_Combo          =11 ' button with displayed 9 bit hex value, activated on adjust(1), adjusted in units on adjust(-$10 or $10)
 
 OBJ
     vga         : "synth.vga"
@@ -190,9 +189,6 @@ Adjust current selection by -$10, -1, 1, or $10
             Type_Algo, Type_Wave, Type_Op:
                 v := AdjustOne(v, D)
 
-            Type_Mask:
-                v := AdjustMask(v, D)
-
             Type_Button:
                 ' nothing
 
@@ -289,9 +285,6 @@ Limit a proposed new value according to type
 
         Type_Wave:
             maxValue := 4
-
-        Type_Mask:
-            maxValue := $1fff
 
         Type_Detune:
             maxValue := $1ff
@@ -550,21 +543,6 @@ Type_Combo::Display
 }
     FormatNumber(@DisplayStr_[0], V, 3, $10, " ")
     DisplayStr_[3] := 7
-
-PRI AdjustMask(V, D) | e
-{
-Type_Mask::Adjust
-}
-    if (D < -1) OR (D > 1)
-        e := >|V
-        if D < 0
-            e := (e - 1) #> 0
-        else
-            e := (e + 1) <# 16
-        V := (1 << e) -1
-    else
-        V += D
-    return V
 
 PRI FormatNumber(StringPtr, V, Digits, Base, Fill) | n, d, p
 {

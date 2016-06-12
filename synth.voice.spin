@@ -63,7 +63,7 @@ CON
     Patch_Ops               = 4
     Patch_Words             = Patch_Op + (Patch_OpWords * Patch_Ops)
 
-    Freq_C10                = $6132         ' frequency of C10 (midi $78)
+    Freq_C10                = $61322        ' frequency of C10 (midi $78)
 
 OBJ
     env[Patch_Ops]  : "synth.env"
@@ -262,7 +262,7 @@ For a note value in cents, return an actual frequency per configured multiplier 
 
         n += (PitchBend * 1200) ~> 12
 
-    n += ((Pitch_ - pitch#Env_Mid) * 6_000) ~> 16
+    n += ((Pitch_ - pitch#Env_Mid) * 3_000) ~> 16
 
     return FrequencyForIndex(Op, n)
 
@@ -291,7 +291,7 @@ PRI SetFrequency(Op, F)
 Set oscillator Op to frequency F (which is actually a 16 bit value)
 }
     ' if we're going at or above Nyquist, be silent instead
-    if F > $ffff
+    if F > $fffff
         F := 0
     LONG[VoicePtr_][Op * 4] := F
 
@@ -370,11 +370,11 @@ N: note 0-13199
     octave := N / 1200
     index := ((N // 1200) * $800) / 1200
     ' within the octave, find 2^(n/1200)
-    f := WORD[$d000][index] | $1_0000
+    f := (WORD[$d000][index] | $1_0000) >> 4
     ' multiply by C (base note per octave)
     f *= Freq_C10
     ' shave down to desired octave
-    f := f >> (16 + (10 - octave))
+    f := f >> (12 + (10 - octave))
     ' now apply multiplier
     f := (f * Multiplier(Op)) >> 8
 

@@ -296,10 +296,10 @@ oscillator
     wrlong env, input                   ' write back updated envelope
 
     add input, #4
-    shl mod, #1                         ' scale input
+    shl mod, #5                         ' scale input
 
     add r0, mod                         ' modulate
-    shr r0, #4                          ' whole number t
+    shr r0, #8                          ' whole number t
 
     test r0, half wz                    ' sign into z
     and r0, half_mask
