@@ -11,17 +11,28 @@ CON
 
     Patch_LFO_Wave          = 2
     Patch_LFO_Frequency     = 3
-    Patch_LFO_R1            = 4
-    Patch_LFO_L1            = 5
-    Patch_LFO_R2            = 6
-    Patch_LFO_L2            = 7
-    Patch_LFO_R3            = 8
-    Patch_LFO_L3            = 9
-    Patch_LFO_R4            = 10
-    Patch_LFO_L4            = 11
-    Patch_LFO_Loop          = 12
+    Patch_LFO_Pitch         = 4
+    Patch_LFO_R1            = 5
+    Patch_LFO_L1            = 6
+    Patch_LFO_R2            = 7
+    Patch_LFO_L2            = 8
+    Patch_LFO_R3            = 9
+    Patch_LFO_L3            = 10
+    Patch_LFO_R4            = 11
+    Patch_LFO_L4            = 12
+    Patch_LFO_Loop          = 13
 
-    Patch_Op                = 13            ' offset to first operator
+    Patch_Pitch_R1          = 14
+    Patch_Pitch_L1          = 15
+    Patch_Pitch_R2          = 16
+    Patch_Pitch_L2          = 17
+    Patch_Pitch_R3          = 18
+    Patch_Pitch_L3          = 19
+    Patch_Pitch_R4          = 20
+    Patch_Pitch_L4          = 21
+    Patch_Pitch_Loop        = 22
+
+    Patch_Op                = 23            ' offset to first operator
 
     Patch_Osc               = 0             ' offset inside operator to oscillator
     Patch_OscWords          = 7
@@ -29,7 +40,7 @@ CON
     Patch_Level             = 0
     Patch_Velocity          = 1
     Patch_Wheel             = 2
-    Patch_LFO               = 3
+    Patch_Mod_LFO           = 3
     Patch_Frequency         = 4
     Patch_Multiplier        = 5
     Patch_Detune            = 6
@@ -56,6 +67,7 @@ CON
 
 OBJ
     env[Patch_Ops]  : "synth.env"
+    pitch           : "synth.env"
     lfo             : "synth.lfo"
 
 VAR
@@ -65,11 +77,11 @@ VAR
     LONG    BendPtr_                        ' long pointer to pitch bend state
     LONG    WheelPtr_                       ' byte pointer to modulation wheel state
     
-    LONG    Frequency_[Patch_Ops]           ' variable frequecy (in cents) of oscillator if pitch bend applies to it
-    LONG    Slide_[Patch_Ops]               ' portamento slide to frequency
-    LONG    Bend_                           ' last pitch bend state
+    LONG    Pitch_                          ' pitch envelope value
     LONG    Rate_                           ' portamento slide rate (0 for none)
     LONG    Clk_                            ' portamento clock sync
+    WORD    Frequency_[Patch_Ops]           ' frequency (in cents) of oscillator
+    WORD    Slide_[Patch_Ops]               ' portamento slide to frequency
     BYTE    Key_                            ' note being played
     BYTE    KeyDown_                        ' key down state
     BYTE    Playing_                        ' playing state (depending on pedal, is not simply KeyDown_)
@@ -96,8 +108,9 @@ WheelPtr:   byte pointer to modulation wheel state
     repeat i from 0 to Patch_Ops - 1
         env[i].Init(@LONG[VoicePtr_][i * 4 + 1], @WORD[PatchPtr][Patch_Op + Patch_Env + Patch_OpWords * i])
     lfo.Init(@WORD[PatchPtr][Patch_LFO_R1])
+    pitch.Init(0, @WORD[PatchPtr][Patch_Pitch_R1])
 
-PUB Advance | c, op, l, updateFreq
+PUB Advance | op, l, c
 {
 Idle state update.
 
@@ -105,21 +118,16 @@ Read new state of midi controls
 Advance envelopes in time
 }
     UpdatePedal
-    
-    c := PitchBend
-    if (c <> Bend_) OR Rate_
-        Bend_ := c
-        updateFreq := TRUE
-    else
-        updateFreq := FALSE
 
     l := lfo.Value
 
-    repeat op from 0 to Patch_Ops-1
-        if (updateFreq AND Frequency_[op])
-            SetFrequency(op, BentFrequency(op))
+    pitch.Advance
+    Pitch_ := pitch.Modulate((LFO_Pitch * l) ~> 9)
 
-        c := WheelSense(Op) * Wheel + ((LFOSense(Op) * l) ~> 9)
+    repeat op from 0 to Patch_Ops-1
+        SetFrequency(op, BentFrequency(op))
+
+        c := WheelSense(Op) * Wheel + ((LFOModSense(Op) * l) ~> 9)
         env[op].Modulate(c)
         env[op].Advance
 
@@ -131,6 +139,7 @@ If sustain pedal is up, key-up envelope states as needed
     if (Playing_ AND NOT (KeyDown_ OR Pedal))
         Playing_ := FALSE
         lfo.Up
+        pitch.Up
         repeat op from 0 to Patch_Ops - 1
             env[op].Up
 
@@ -146,11 +155,11 @@ Enter envelope key-down states with velocity scale
     Key_ := K
     KeyDown_ := TRUE
     
-    ' set last known pitch bend state
-    Bend_ := PitchBend
-    
     ' LFO
     lfo.Set(LFO_Wave, LFO_Frequency)
+
+    ' pitch envelope
+    Pitch_ := pitch.Down($200)
 
     ' if portamento is in effect, set the target slide value
     if P
@@ -212,17 +221,16 @@ V:  Velocity $01-$7f
 
     n += Detune(Op)                 ' detune as configured
 
-    if NOT (s & $80)
-        Frequency_[Op] := 0         ' not a bendable frequency
-        SetFrequency(Op, FrequencyForIndex(Op, n)) ' set the actual frequency
-    else
-        if P
-            Slide_[Op] := n         ' target portamento frequency
+    if P
+        Slide_[Op] := n             ' target portamento frequency
 
-        if (NOT P) OR (NOT Frequency_[Op]) OR (NOT Playing_)
-            Frequency_[Op] := n     ' currently playing bendable frequency
+    if (NOT P) OR (NOT Frequency_[Op]) OR (NOT Playing_)
+        Frequency_[Op] := n         ' currently playing frequency
 
-        SetFrequency(Op, BentFrequency(Op)) ' set the actual frequency
+    if (s & $80)
+        Frequency_[Op] |= $8000     ' pitch bend applies
+
+    SetFrequency(Op, BentFrequency(Op)) ' set the actual frequency
 
     ' velocity scale the envelope (todo: this better)
     V := $7F - V
@@ -233,23 +241,29 @@ V:  Velocity $01-$7f
     env[Op].Down(n)                 ' enter key-down state
 
 
-PRI BentFrequency(Op) | p, n, s
+PRI BentFrequency(Op) | p, b, n, s
 {
 For a note value in cents, return an actual frequency per configured multiplier and pitch bend/portamento state
 }
     n := Frequency_[Op]
+    b := n & $8000
+    n &= $7fff
 
-    if Rate_
-        s := Slide_[Op]
-        p := ((CNT - Clk_) / Rate_) & $3fff
+    if b
+        if Rate_
+            s := Slide_[Op]
+            p := ((CNT - Clk_) / Rate_) & $3fff
 
-        if s < n
-            n := (n - p) #> s
-        elseif s > n
-            n := (n + p) <# s
-        Frequency_[Op] := n
+            if s < n
+                n := (n - p) #> s
+            elseif s > n
+                n := (n + p) <# s
+            Frequency_[Op] := n | b
 
-    n += (Bend_ * 1200) ~> 12
+        n += (PitchBend * 1200) ~> 12
+
+    n += ((Pitch_ - pitch#Env_Mid) * 6_000) ~> 16
+
     return FrequencyForIndex(Op, n)
 
 ' global state accessors
@@ -294,6 +308,12 @@ LFO Rate
 }
     return WORD[PatchPtr_][Patch_LFO_Frequency]
 
+PRI LFO_Pitch
+{
+LFO pitch sensitivity, 0-$200
+}
+    return WORD[PatchPtr_][Patch_LFO_Pitch]
+
 PRI Level(Op)
 {
 Configured level, 0-$200
@@ -312,11 +332,11 @@ Modulation wheel sensitivity, 0-$200
 }
     return WORD[PatchPtr_][Patch_Op + Patch_OpWords * Op + Patch_Wheel]
 
-PRI LFOSense(Op)
+PRI LFOModSense(Op)
 {
 LFO sensitivity, 0-$200
 }
-    return WORD[PatchPtr_][Patch_Op + Patch_OpWords * Op + Patch_LFO]
+    return WORD[PatchPtr_][Patch_Op + Patch_OpWords * Op + Patch_Mod_LFO]
 
 PRI Multiplier(Op)
 {

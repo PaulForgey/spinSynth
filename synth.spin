@@ -114,6 +114,7 @@ after setting up the UI, do things in this order:
     ui.BeginGroup(String("LFO"))
     PatchStartUI_ := ui.GroupItem(String("Waveform"), PatchParamPtr(v#Patch_LFO_Wave), ui#Type_Wave)
     ui.GroupItem(String("Frequency"), PatchParamPtr(v#Patch_LFO_Frequency), ui#Type_Pct)
+    ui.GroupItem(String("Pitch"), PatchParamPtr(v#Patch_LFO_Pitch), ui#Type_Pct)
     ui.GroupItem(String("1             Rate"), PatchParamPtr(v#Patch_LFO_R1), ui#Type_Pct)
     ui.GroupItem(String("             Level"), PatchParamPtr(v#Patch_LFO_L1), ui#Type_Pct)
     ui.GroupItem(String("2             Rate"), PatchParamPtr(v#Patch_LFO_R2), ui#Type_Pct)
@@ -122,7 +123,19 @@ after setting up the UI, do things in this order:
     ui.GroupItem(String("             Level"), PatchParamPtr(v#Patch_LFO_L3), ui#Type_Pct)
     ui.GroupItem(String("4             Rate"), PatchParamPtr(v#Patch_LFO_R4), ui#Type_Pct)
     ui.GroupItem(String("             Level"), PatchParamPtr(v#Patch_LFO_L4), ui#Type_Pct)
-    ui.GroupItem(String("Loop"), PatchEnvParamPtr(0, v#Patch_LFO_Loop), ui#Type_Bool)
+    ui.GroupItem(String("Loop"), PatchParamPtr(v#Patch_LFO_Loop), ui#Type_Bool)
+    ui.EndGroup
+
+    ui.BeginGroup(String("Pitch Envelope"))
+    ui.GroupItem(String("1             Rate"), PatchParamPtr(v#Patch_Pitch_R1), ui#Type_Pct)
+    ui.GroupItem(String("             Level"), PatchParamPtr(v#Patch_Pitch_L1), ui#Type_Pct)
+    ui.GroupItem(String("2             Rate"), PatchParamPtr(v#Patch_Pitch_R2), ui#Type_Pct)
+    ui.GroupItem(String("             Level"), PatchParamPtr(v#Patch_Pitch_L2), ui#Type_Pct)
+    ui.GroupItem(String("3             Rate"), PatchParamPtr(v#Patch_Pitch_R3), ui#Type_Pct)
+    ui.GroupItem(String("             Level"), PatchParamPtr(v#Patch_Pitch_L3), ui#Type_Pct)
+    ui.GroupItem(String("4             Rate"), PatchParamPtr(v#Patch_Pitch_R4), ui#Type_Pct)
+    ui.GroupItem(String("             Level"), PatchParamPtr(v#Patch_Pitch_L4), ui#Type_Pct)
+    ui.GroupItem(String("Loop"), PatchParamPtr(v#Patch_Pitch_Loop), ui#Type_Bool)
     ui.EndGroup
 
     ui.BeginGroup(String("Voice"))
@@ -135,7 +148,7 @@ after setting up the UI, do things in this order:
     ui.GroupItem(String("Level"), PatchOscParamPtr(0, v#Patch_Level), ui#Type_Pct)
     ui.GroupItem(String("Velocity"), PatchOscParamPtr(0, v#Patch_Velocity), ui#Type_Pct)
     ui.GroupItem(String("Wheel"), PatchOscParamPtr(0, v#Patch_Wheel), ui#Type_Pct)
-    ui.GroupItem(String("LFO"), PatchOscParamPtr(0, v#Patch_LFO), ui#Type_Pct)
+    ui.GroupItem(String("LFO"), PatchOscParamPtr(0, v#Patch_Mod_LFO), ui#Type_Pct)
     ui.GroupItem(String("Frequency"), PatchOscParamPtr(0, v#Patch_Frequency), ui#Type_Freq)
     ui.GroupItem(String("Multiplier"), PatchOscParamPtr(0, v#Patch_Multiplier), ui#Type_Mult)
     ui.GroupItem(String("Detune"), PatchOscParamPtr(0, v#Patch_Detune), ui#Type_Detune)

@@ -7,7 +7,7 @@ See end of file for terms of use
 
 CON
     colors  = $180
-    Height  = 60
+    Height  = 70
 
 VAR
     LONG    Cog_
@@ -15,7 +15,7 @@ VAR
 
     WORD    Status_[25]                 ' button of screen status
     WORD    TextPtr_                    ' display offset into text buffer
-    WORD    Text_[1500]                 ' text buffer (as a playfield; TextPtr_ indicates exactly where)
+    WORD    Text_[Height*25]            ' text buffer (as a playfield; TextPtr_ indicates exactly where)
 
 PUB Start(ScopePtr, GraphicsPtr) | _i
 {
@@ -32,7 +32,7 @@ GraphicsPtr: long pointer to free form graphics area
     Params_[3] := @TextPtr_
     Params_[4] := @ColorTable
     
-    wordfill(@Text_, " " | $200, 1500)
+    wordfill(@Text_, " " | $200, Height*25)
     wordfill(@Status_[0], " " | $200, 25)
     return Cog_ := (cognew(@entry, @Params_) + 1)
 

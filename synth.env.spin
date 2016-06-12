@@ -7,6 +7,7 @@ See end of file for terms of use
 
 CON
     Env_Max     = $3_ffff
+    Env_Mid     = $1_0609   ' level shown in Pct as 50 (actual patch value $103)
 
 VAR
     LONG    ValuePtr_       ' long pointer to envelope value
@@ -63,15 +64,15 @@ M: Modulation +/- $10000
     ' make note of where we are at
     Env_ := L
 
-    if NOT ValuePtr_
-        return
-
     ' outside of persistent envelope state, add in modulation
     M := M #> -$10000 <# $10000
     M := (M * (L >> 3)) ~> 13   ' scale modulation factor by the envelope state
     L += M                      ' then add to or subtract from it
 
     L := L #> 0 <# Env_Max
+
+    if NOT ValuePtr_
+        return L
 
     ' only look at 15 MSBs
     L >>= 3
@@ -90,6 +91,7 @@ M: Modulation +/- $10000
     L := (((L ^ $f_ffff) * $880) + $1000) >> 1
 
     LONG[ValuePtr_] := L
+    return L
 
 PRI Transition(S) | rate, level
 {
@@ -129,14 +131,14 @@ Set output level to 0 and state to 5
 
 PUB Modulate(M)
 {
-Set total modulation value (wheel+LFO) +/- $10000
+Set modulation value +/- $10000
 }
     Mod_ := M
 
     if State_ < 5
-        SetLevel(Env_, M)
+        result := SetLevel(Env_, M)
     else
-        SetLevel(Env_, 0)
+        result := SetLevel(Env_, 0)
 
 PUB Down(Scale)
 {
@@ -144,7 +146,7 @@ Enter key down state with scale 0-$200 by transitioning to state 0
 }
     Scale_ := Scale
     Transition(0)
-    Advance
+    return Advance
     
 PUB Up
 {

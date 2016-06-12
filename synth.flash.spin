@@ -124,7 +124,7 @@ Start back end flash driver
     return TRUE
 
 DAT
-Header  BYTE    "synth06", 0
+Header  BYTE    "synth07", 0
 
 {{
                             TERMS OF USE: MIT License

@@ -353,7 +353,7 @@ PRI DisplayPct(V) | l
 {
 Type_Pct::Display
 }
-    V := (V * 100) / 512
+    V := (V * 995) / 5120
     V <#= 99
     DisplayStr_[0] := " "
     DisplayStr_[1] := " "
@@ -368,16 +368,11 @@ Type_Pct::Adjust
     elseif D > 1
         D := 10
 
-    V := (V * 100) / 512
+    V := (V * 995) / 5120
     V <#= 99
     V += D
     
-    if V <> 0
-        if V => 99
-            V := $200
-        else
-            V := (V * 10) + 5
-            V := (V * 512) / 1000
+    V := ((V * 10 + 5) * 512) / 995
 
     return V
     
