@@ -116,7 +116,7 @@ Advance envelopes in time
     l := lfo.Value
 
     repeat op from 0 to Patch_Ops-1
-        if (updateFreq AND c := Frequency_[op])
+        if (updateFreq AND Frequency_[op])
             SetFrequency(op, BentFrequency(op))
 
         c := WheelSense(Op) * Wheel + ((LFOSense(Op) * l) ~> 9)
@@ -212,7 +212,7 @@ V:  Velocity $01-$7f
 
     n += Detune(Op)                 ' detune as configured
 
-    if (s => $180)
+    if NOT (s & $80)
         Frequency_[Op] := 0         ' not a bendable frequency
         SetFrequency(Op, FrequencyForIndex(Op, n)) ' set the actual frequency
     else
