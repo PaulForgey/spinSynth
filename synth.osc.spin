@@ -293,7 +293,7 @@ oscillator
     sub level, env                      ' put a slope on envelope movement
     sar level, #4 wc
 
-    if_c cmpsub level, minus_one        ' level = (level - env) / 8
+    if_c cmpsub level, minus_one        ' level = (level - env) / 16
     add env, level                      ' env += level
 
     shl mod, #5                         ' scale input

@@ -135,10 +135,7 @@ Set modulation value +/- $10000
 }
     Mod_ := M
 
-    if State_ < 5
-        result := SetLevel(Env_, M)
-    else
-        result := SetLevel(Env_, 0)
+    result := SetLevel(Env_, M)
 
 PUB Down(Scale)
 {
