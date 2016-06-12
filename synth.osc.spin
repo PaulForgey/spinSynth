@@ -281,7 +281,7 @@ oscillator
     rdlong f, input                     ' read f
     
     add input, #4
-    add t, f                            ' increment t
+    add t, f                            ' add t
     
     rdlong level, input                 ' read desired envelope level
     
@@ -290,30 +290,30 @@ oscillator
 
     rdlong env, input                   ' read current envelope level
     
-    sub level, env                      ' put a slope on envelope movement
-    sar level, #1 wc
-
-    if_c cmpsub level, minus_one        ' level = (level - env) / 2
-    add env, level                      ' env += level
-    
-    shl mod, #1                         ' scale input
-    add r0, mod                         ' modulate
+    add env, level                      ' put a slope on envelope movement
+    shr env, #1                         ' env = (level + env) / 2
 
     wrlong env, input                   ' write back updated envelope
 
     add input, #4
+    shl mod, #1                         ' scale input
+
+    add r0, mod                         ' modulate
+    shr r0, #4                          ' whole number t
+
+    test r0, half wz                    ' sign into z
+    and r0, half_mask
+
+    cmp quarter, r0 wc                  ' odd quarter?
+    negc r0, r0
+
+    if_c and r0, quarter_mask
     shr env, #14                        ' scale envelope
 
-    shr r0, #4                          ' whole number t
-    test r0, half wz                    ' sign into z
-
-    and r0, half_mask
-    cmp quarter, r0 wc                  ' odd quarter?
-
-    negc r0, r0
-    if_c and r0, quarter_mask
-
     add r0, sine_ptr                    ' sine table
+    ' [nop]
+
+    ' [nop]
     ' [nop]
 
     rdword r0, r0                       ' r0=log(sin(r0))
