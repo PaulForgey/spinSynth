@@ -21,8 +21,7 @@ CON
 
 OBJ
     vga         : "synth.vga"
-    graphics    : "synth.ui.graphics" 
-    
+
 VAR
     WORD    Line_                           ' line number/control ID of next added, or total number
     WORD    Selection_                      ' current selection
@@ -31,12 +30,13 @@ VAR
     BYTE    ParamTypes_[vga#Height]         ' parameter types
     BYTE    ParamEnable_[vga#Height]        ' parameter enabled if non-0
 
-PUB Start(Scope)
+PUB Start(ScopePtr, GraphicsPtr)
 {
 Start the back end graphics driver
-Scope: byte pointer to scope data
+ScopePtr: byte pointer to scope data
+GraphicsPtr: long pointer to free form graphics area
 }
-    vga.Start(Scope, graphics.GraphicsPtr)
+    vga.Start(ScopePtr, GraphicsPtr)
     
 PUB SetStatus(Status)
 {
@@ -128,6 +128,12 @@ Value is highlighted and, if enabled, editing happens in this field
     Selection_ := S                             ' set new selection
     vga.Highlight(20, 4, Selection_, TRUE)      ' ..and highlight
     DisplayField(S)                             ' update field view
+
+PUB Selection
+{
+    Current selection
+}
+    return Selection_
 
 PUB SelectPrev | s
 {
@@ -451,7 +457,6 @@ Type_Op::Display
     DisplayStr_[1] := "p"
     DisplayStr_[2] := " "
     DisplayStr_[3] := LookupZ(V : "1".."4")
-    graphics.SelectOperator(V)
 
 PRI DisplayWave(V)
 {
@@ -528,7 +533,6 @@ PRI DisplayAlgo(V)
 Type_Algo::Display
 }
     FormatNumber(@DisplayStr_[0], V+1, 4, 10, " ")
-    graphics.SetAlgorithm(V)
 
 PRI DisplayButton(V)
 {

@@ -14,12 +14,13 @@ CON
     Out_Pin         = 9
     
 OBJ
-    midi    : "synth.midi"
-    osc[4]  : "synth.osc"
-    v[8]    : "synth.voice"
-    out     : "synth.out"
-    ui      : "synth.ui"
-    flash   : "synth.flash"
+    midi        : "synth.midi"
+    osc[4]      : "synth.osc"
+    v[8]        : "synth.voice"
+    out         : "synth.out"
+    ui          : "synth.ui"
+    graphics    : "synth.ui.graphics"
+    flash       : "synth.flash"
  
 VAR
     ' shared memory coordinating the oscillators with the voices and master output
@@ -31,6 +32,7 @@ VAR
     ' UI control IDs and values
     '
     WORD    PatchUI_                            ' patch control
+    WORD    AlgoUI_                             ' algorithm control
     WORD    OperatorSel_                        ' current operator selection
     WORD    OperatorUI_                         ' operator selection control
     WORD    EnvelopeSel_                        ' current envelope selection
@@ -38,7 +40,9 @@ VAR
     WORD    LoadButton_                         ' load button
     WORD    SwapButton_                         ' swap button
     WORD    SaveButton_                         ' save button
-    WORD    CopyEnvelopeButton_                 ' copy selected envelope to others button
+    WORD    CopyAllButton_                      ' copy selected envelope to others button
+    WORD    CopyButton_                         ' copy selected envelope button
+    WORD    PasteButton_                        ' paste to selected envelope button
     WORD    Waste_                              ' buttons annoyingly need to point to a value
     WORD    PatchStartUI_                       ' controls => this value affect the patch
     WORD    PatchEndUI_                         ' controls < this value affect the patch
@@ -60,6 +64,7 @@ VAR
     WORD    LoadPatchNum_                       ' UI value for "Load Patch" button
     WORD    PatchNum_                           ' the current patch number
     LONG    Dirty_                              ' version of patch not in storage
+    WORD    EnvBuffer_[v#Patch_EnvWords]        ' envelope clipboard
     
     ' Misc state
     '
@@ -92,7 +97,7 @@ after setting up the UI, do things in this order:
     out.Start(Out_Pin, @OscOutputs_, @OscTriggers_, 4)
 
     ' fire up the VGA display
-    ui.Start(out.ScopePtr)
+    ui.Start(out.ScopePtr, graphics.GraphicsPtr)
 
     ' set up default global configuration values
     MinVelocity_ := $01
@@ -139,7 +144,7 @@ after setting up the UI, do things in this order:
     ui.EndGroup
 
     ui.BeginGroup(String("Voice"))
-    ui.GroupItem(String("Algorithm"), PatchParamPtr(v#Patch_Algorithm), ui#Type_Algo)
+    AlgoUI_ := ui.GroupItem(String("Algorithm"), PatchParamPtr(v#Patch_Algorithm), ui#Type_Algo)
     ui.GroupItem(String("Feedback"), PatchParamPtr(v#Patch_Feedback), ui#Type_Feedback)
     ui.EndGroup
 
@@ -165,7 +170,9 @@ after setting up the UI, do things in this order:
     ui.GroupItem(String("4             Rate"), PatchEnvParamPtr(0, v#Patch_R4), ui#Type_Pct)
     ui.GroupItem(String("             Level"), PatchEnvParamPtr(0, v#Patch_L4), ui#Type_Pct)
     ui.GroupItem(String("Loop"), PatchEnvParamPtr(0, v#Patch_Loop), ui#Type_Bool)
-    CopyEnvelopeButton_ := ui.GroupItem(String("Copy To All"), @Waste_, ui#Type_Button)
+    CopyAllButton_ := ui.GroupItem(String("Copy To All"), @Waste_, ui#Type_Button)
+    CopyButton_ := ui.GroupItem(String("Copy"), @Waste_, ui#Type_Button)
+    PasteButton_ := ui.GroupItem(String("Paste"), @Waste_, ui#Type_Button)
     ui.EndGroup
     
     PatchEndUI_ := ui.BeginGroup(String("Global Settings"))
@@ -258,15 +265,24 @@ Control: 0-2
         
         SaveButton_:
             OnSavePatch(PatchNum_)
-            
-        CopyEnvelopeButton_:
-            OnCopyEnvelope
-            
+
+        CopyAllButton_:
+            OnCopyAll
+
+        CopyButton_:
+            OnCopy
+
+        PasteButton_:
+            OnPaste
+
         LoadButton_:
             OnLoadPatch(LoadPatchNum_)
 
         PatchUI_:
             OnLoadPatch(PatchNum_)
+
+        AlgoUI_:
+            OnAlgoChange
 
         OperatorUI_:
             OnOperatorChange(OperatorSel_)
@@ -279,6 +295,10 @@ Control: 0-2
             if button => PatchStartUI_ AND button < PatchEndUI_
                 Dirty_ := TRUE
 
+    if ui.Selection => EnvelopeUI_
+        graphics.SelectOperator(EnvelopeSel_)
+    else
+        graphics.SelectOperator(OperatorSel_)
 
     ' If the patch is unsaved, force the user to load or save before navigating out of it
     ui.EnableItem(PatchUI_, !Dirty_)
@@ -330,6 +350,7 @@ Load a patch
         LoadPatchNum_ := PatchNum
         ' update the UI with new values
         ui.Refresh
+        graphics.SetAlgorithm(WORD[PatchParamPtr(v#Patch_Algorithm)])
         ' not dirty
         Dirty_ := FALSE
         ui.SetStatus(String(" "))
@@ -353,7 +374,15 @@ Swap patch with alternate values (initially the loaded ones)
         PatchSwap_[w] := n
 
     ui.Refresh
+    graphics.SetAlgorithm(WORD[PatchParamPtr(v#Patch_Algorithm)])
     Dirty_ := TRUE ' could be smarter here
+
+PRI OnAlgoChange
+{
+Selected algorithm has changed. Update UI graphics.
+}
+    graphics.SetAlgorithm(WORD[PatchParamPtr(v#Patch_Algorithm)])
+    Dirty_ := TRUE
 
 PRI OnOperatorChange(Sel) | i
 {
@@ -369,7 +398,7 @@ Selected envelope has changed, so update the UI pointers to its parameters
     repeat i from 0 to v#Patch_EnvWords - 1
         ui.PointItem(EnvelopeUI_ + i + 1, PatchEnvParamPtr(Sel, i))
 
-PRI OnCopyEnvelope | i, j
+PRI OnCopyAll | i, j
 {
 Copy selected envelope parameters to all the other envelopes
 }
@@ -377,6 +406,21 @@ Copy selected envelope parameters to all the other envelopes
         if i <> EnvelopeSel_
             repeat j from 0 to v#Patch_EnvWords-1
                 WORD[PatchEnvParamPtr(i, j)] := WORD[PatchEnvParamPtr(EnvelopeSel_, j)]
+    Dirty_ := TRUE
+
+PRI OnCopy
+{
+Copy selected envelope to buffer
+}
+    WordMove(@EnvBuffer_, PatchEnvParamPtr(EnvelopeSel_, 0), v#Patch_EnvWords)
+
+PRI OnPaste
+{
+Paste buffer to selected envelope
+}
+    WordMove(PatchEnvParamPtr(EnvelopeSel_, 0), @EnvBuffer_, v#Patch_EnvWords)
+    Dirty_ := TRUE
+    ui.Refresh
 
 PRI OnMidi(M)
 {
