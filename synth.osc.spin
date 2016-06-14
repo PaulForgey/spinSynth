@@ -570,8 +570,26 @@ BYTE    Bus_4,      Bus_Out,    Bus_Nowhere,    0
 BYTE    Bus_Zero,   Bus_Nowhere,Bus_4,          0
 BYTE    Bus_7,      Bus_Out,    Bus_Nowhere,    0
 BYTE    Bus_7,      Bus_Nowhere,Bus_7,          0
+
 {{
  Algorithm 5
+2 4-|
+| | |
+1 3-|
+}}
+'       input       add         mov             mbz
+BYTE    Bus_0,      Bus_Out,    Bus_Nowhere,    0
+BYTE    Bus_Zero,   Bus_Nowhere,Bus_0,          0
+BYTE    Bus_2,      Bus_Out,    Bus_3,          0
+BYTE    Bus_3,      Bus_Nowhere,Bus_2,          0
+
+BYTE    Bus_4,      Bus_Out,    Bus_Nowhere,    0
+BYTE    Bus_Zero,   Bus_Nowhere,Bus_4,          0
+BYTE    Bus_6,      Bus_Out,    Bus_7,          0
+BYTE    Bus_7,      Bus_Nowhere,Bus_6,          0
+
+{{
+ Algorithm 6
   4*
   |
   3
@@ -589,7 +607,7 @@ BYTE    Bus_5,      Bus_Out,    Bus_Nowhere,    0
 BYTE    Bus_6,      Bus_Nowhere,Bus_5,          0
 BYTE    Bus_6,      Bus_Nowhere,Bus_6,          0
 {{
- Algorithm 6
+ Algorithm 7
   4-|
   | |
   3 |
@@ -607,7 +625,7 @@ BYTE    Bus_5,      Bus_Out,    Bus_7,          0
 BYTE    Bus_6,      Bus_Nowhere,Bus_5,          0
 BYTE    Bus_7,      Bus_Nowhere,Bus_6,          0
 {{
- Algorithm 7
+ Algorithm 8
   4*
   |
 2 3
@@ -625,7 +643,7 @@ BYTE    Bus_Zero,   Bus_Nowhere,Bus_4,          0
 BYTE    Bus_6,      Bus_4,      Bus_Nowhere,    0
 BYTE    Bus_6,      Bus_nowhere,Bus_6,          0
 {{
- Algorithm 8
+ Algorithm 9
   4=|
   | |
 2 3=|
@@ -644,7 +662,7 @@ BYTE    Bus_6,      Bus_4,      Bus_5,          0
 BYTE    Bus_5,      Bus_nowhere,Bus_6,          0
 
 {{
- Algorithm 9
+ Algorithm 10
 3
 |
 2 4*
@@ -663,7 +681,7 @@ BYTE    Bus_Zero,   Bus_Nowhere,Bus_5,          0
 BYTE    Bus_7,      Bus_4,      Bus_7,          0
 
 {{
- Algorithm 10
+ Algorithm 11
 
 2 3 4*
 |=|=|
@@ -681,7 +699,7 @@ BYTE    Bus_Zero,   Bus_4,      Bus_Nowhere,    0
 BYTE    Bus_7,      Bus_4,      Bus_7,          0
 
 {{
- Algorithm 11
+ Algorithm 12
 3 4*
 |=|
   2
@@ -699,7 +717,7 @@ BYTE    Bus_5,      Bus_Nowhere,Bus_4,          0
 BYTE    Bus_Zero,   Bus_Nowhere,Bus_5,          0
 BYTE    Bus_7,      Bus_5,      Bus_7,          0
 {{
- Algorithm 12
+ Algorithm 13
 4*
 |
 3
@@ -719,7 +737,7 @@ BYTE    Bus_5,      Bus_Nowhere,Bus_4,          0
 BYTE    Bus_6,      Bus_Nowhere,Bus_5,          0
 BYTE    Bus_6,      Bus_Nowhere,Bus_6,          0
 {{
- Algorithm 13
+ Algorithm 14
 4=|
 | |
 3 |

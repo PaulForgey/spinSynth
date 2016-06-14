@@ -281,7 +281,7 @@ Limit a proposed new value according to type
             maxValue := 19
     
         Type_Algo:
-            maxValue := 12
+            maxValue := 13
 
         Type_Wave:
             maxValue := 4

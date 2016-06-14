@@ -122,7 +122,7 @@ Advance envelopes in time
     l := lfo.Value
 
     pitch.Advance
-    Pitch_ := pitch.Modulate((LFO_Pitch * l) ~> 9)
+    Pitch_ := pitch.Modulate((LFO_Pitch * l) ~> 12)
 
     repeat op from 0 to Patch_Ops-1
         SetFrequency(op, BentFrequency(op))
