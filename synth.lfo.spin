@@ -10,13 +10,16 @@ CON
     Wave_Triangle       = 2
     Wave_SawUp          = 3
     Wave_SawDown        = 4
+    Wave_Random         = 5
 
 OBJ
     env     : "synth.env"
 
 VAR
     LONG Clk_                   ' clock sync
+    LONG Hold_                  ' S&H (random) value
     WORD F_                     ' frequency divider
+    WORD P_                     ' last phase
     BYTE Wave_                  ' one of the Wave_ constants
 
 PUB Init(EnvPtr)
@@ -70,6 +73,10 @@ Get current oscillator value, range -$10000 to $10000
         Wave_SawDown:
             result := SawDown(p)
 
+        Wave_Random:
+            result := Random(p)
+
+    P_ := p
     result := (result * (e >> 4)) ~> 14
 
 PRI Sine(P) | s
@@ -100,6 +107,11 @@ PRI SawUp(P)
 
 PRI SawDown(P)
     return ($1000 - P) * $10
+
+PRI Random(P)
+    if (P & $800) <> (P_ & $800)
+        ?Hold_
+    return Hold_
 
 {{
                             TERMS OF USE: MIT License

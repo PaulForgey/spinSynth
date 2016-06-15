@@ -15,7 +15,7 @@ CON
     Type_Detune         = 6 ' detuning from -256 to 255 scaled from $1ff to $ff
     Type_Feedback       = 7 ' 0-19 with value being 19-displayed
     Type_Algo           = 8 ' algorithm selection, which also updates graphical drawing
-    Type_Wave           = 9 ' LFO waveform 0-4 (sine, square, triangle, saw up, saw down)
+    Type_Wave           = 9 ' LFO waveform 0-5 (sine, square, triangle, saw up, saw down, random)
     Type_Button         =10 ' button with no displayed value, activated on adjust(1)
     Type_Combo          =11 ' button with displayed 9 bit hex value, activated on adjust(1), adjusted in units on adjust(-$10 or $10)
 
@@ -290,7 +290,7 @@ Limit a proposed new value according to type
             maxValue := 13
 
         Type_Wave:
-            maxValue := 4
+            maxValue := 5
 
         Type_Detune:
             maxValue := $1ff
@@ -477,6 +477,9 @@ Type_Wave::Display
 
         4:      ' saw down
             ByteMove(@DisplayStr_, String(133, 133, 133, 133), 5)
+
+        5:      ' random
+            ByteMove(@DisplayStr_, String("Rand"), 5)
 
 PRI DisplayDetune(V)
 {
