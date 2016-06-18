@@ -53,7 +53,7 @@ Loop L3->L2, Boolean
 }
     return WORD[EnvPtr_][8] <> 0
 
-PRI SetLevel(L, M) | e, f
+PRI SetLevel(L) | e, f, m
 {
 Set effective oscillator output level with log2 scaling
 L: 0,Env_Max
@@ -65,9 +65,9 @@ M: Modulation +/- $10000
     Env_ := L
 
     ' outside of persistent envelope state, add in modulation
-    M := M #> -$10000 <# $10000
-    M := (M * (L >> 3)) ~> 13   ' scale modulation factor by the envelope state
-    L += M                      ' then add to or subtract from it
+    m := Mod_ #> -$10000 <# $10000
+    m := (m * (L >> 3)) ~> 13   ' scale modulation factor by the envelope state
+    L += m                      ' then add to or subtract from it
 
     L := L #> 0 <# Env_Max
 
@@ -87,8 +87,8 @@ M: Modulation +/- $10000
 
     ' at this point, we are in range 0-$f_ffff. Scale it to 0-$8800 and invert.
     ' Shift to the goofy bit arrangement needed by the oscillator (starting from 31 down).
-    ' Add an extra $100 to the final result.
-    L := (((L ^ $f_ffff) * $880) + $1000) >> 1
+    ' Add an extra $800 to the final result.
+    L := (((L ^ $f_ffff) * $88) + $100) << 3
 
     LONG[ValuePtr_] := L
     return L
@@ -114,7 +114,7 @@ Transiation state S:
         rate := $200 - EnvRate(S)
         Duration_ := ((rate * rate) >> 3) #> 1
     else
-        SetLevel(Env_, 0)
+        SetLevel(Env_)
 
 PUB State
 {
@@ -127,7 +127,7 @@ PUB Silence
 Set output level to 0 and state to 5
 }
     State_ := 5
-    SetLevel(0, 0)
+    SetLevel(0)
 
 PUB Modulate(M)
 {
@@ -135,7 +135,7 @@ Set modulation value +/- $10000
 }
     Mod_ := M
 
-    result := SetLevel(Env_, M)
+    result := SetLevel(Env_)
 
 PUB Down(Scale)
 {
@@ -162,19 +162,19 @@ state 4 is terminal
 within this scope, state 2 is also terminal if not looping. Regarless, state 3 needs an explicit transition
 }
     if (State_ < 5) ' do nothing for state 5
-        t := CNT - Clk_                                     ' measure elapsed time
+        t := (CNT - Clk_) & $ffff_0000                      ' measure elapsed time
         
-        if (State_ == 0) OR ((t & $ffff_0000) <> LastT_)    ' within the resolution we care about, update if different
+        if (State_ == 0) OR (t <> LastT_)                   ' within the resolution we care about, update if different
             if (State_ == 0)
                 State_ := 1
-            LastT_ := t & $ffff_0000                        ' make note of current time
+            LastT_ := t                                     ' make note of current time
     
             t <#= (Duration_ << 16)                         ' limit elapsed time to duration
             d := t / Duration_                              ' compute t*(rise/run) we should be at for this t
             l := ((Delta_ ~> 4) * d) ~> 12                  ' base+t*(rise/run)
             l := Base_ + l
 
-            SetLevel(l, Mod_)                               ' set the new level
+            SetLevel(l)                                     ' set the new level
     
             if (t => (Duration_ << 16))                     ' if we have elapsed duration, possible state change
                 if (State_ < 3)                             ' L1 -> L2, L2 -> L3
