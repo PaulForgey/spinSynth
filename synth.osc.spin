@@ -125,19 +125,56 @@ wait
     cmp alg, r0 wz
     if_nz call #change_alg
 
-sample
     mov input, input_ptr                ' reset oscillator bank inputs
+
+    mov r0, #osc_f+0
+    mov r1, #osc_rate+0
+    mov r2, #osc_env+0
+    mov c1, #8
+
+params
+    movd f_ind, r0
+    movd rate_ind, r1
+
+f_ind
+    rdlong osc_f+0, input
+
+    add input, #4
+    movs env_ind, r2
+
+    rdlong rate, input
+
+env_ind
+    sub rate, osc_env+0
+    sar rate, #4
+
+    add r0, #1
+    add r1, #1
+
+rate_ind
+    mov osc_rate+0, rate
+    add r2, #1
+
+    add input, #12
+    djnz c1, #params
+
+sample
     mov out, #0                         ' reset current output sample
 
-    '=== pre-initialize to default algorithm 0 (organ mode, feedback on operator 4 [oscillators 3 and 7])
+    '=== pre-initialized to default algorithm 0 (organ mode, feedback operators from self)
     
     ' oscillator 0
 osc_0_in
     mov mod, zero
 
     mov t, osc_t+0
+    mov f, osc_f+0
+    mov env, osc_env+0
+
     call #oscillator
+
     mov osc_t+0, t
+    add osc_env+0, osc_rate+0
     
     ' oscillator 0 output
 osc_0_out
@@ -151,8 +188,13 @@ osc_1_in
     mov mod, zero
     
     mov t, osc_t+1    
+    mov f, osc_f+1
+    mov env, osc_env+1
+
     call #oscillator
+
     mov osc_t+1, t
+    add osc_env+1, osc_rate+1
 
     ' oscillator 1 output
 osc_1_out
@@ -166,8 +208,13 @@ osc_2_in
     mov mod, zero
 
     mov t, osc_t+2
+    mov f, osc_f+2
+    mov env, osc_env+2
+
     call #oscillator
+
     mov osc_t+2, t
+    add osc_env+2, osc_rate+2
     
     ' oscillator 2 output
 osc_2_out
@@ -187,8 +234,13 @@ osc_3_in
     sar mod, fb
 
     mov t, osc_t+3
+    mov f, osc_f+3
+    mov env, osc_env+3
+
     call #oscillator
+
     mov osc_t+3, t
+    add osc_env+3, osc_rate+3
 
     ' oscillator 3 output
 osc_3_out
@@ -202,8 +254,13 @@ osc_4_in
     mov mod, zero
 
     mov t, osc_t+4
+    mov f, osc_f+4
+    mov env, osc_env+4
+
     call #oscillator
+
     mov osc_t+4, t
+    add osc_env+4, osc_rate+4
     
     ' oscillator 4 output
 osc_4_out
@@ -217,8 +274,13 @@ osc_5_in
     mov mod, zero
 
     mov t, osc_t+5
+    mov f, osc_f+5
+    mov env, osc_env+5
+
     call #oscillator
+
     mov osc_t+5, t
+    add osc_env+5, osc_rate+5
 
     ' oscillator 5 output
 osc_5_out
@@ -232,8 +294,13 @@ osc_6_in
     mov mod, zero
 
     mov t, osc_t+6
+    mov f, osc_f+6
+    mov env, osc_env+6
+
     call #oscillator
+
     mov osc_t+6, t
+    add osc_env+6, osc_rate+6
     
     ' oscillator 6 output
 osc_6_out
@@ -253,8 +320,13 @@ osc_7_in
     sar mod, fb
 
     mov t, osc_t+7
+    mov f, osc_f+7
+    mov env, osc_env+7
+
     call #oscillator
+
     mov osc_t+7, t
+    add osc_env+7, osc_rate+7
     
     ' oscillator 7 output
 osc_7_out
@@ -278,43 +350,18 @@ osc_7_out
 '* Oscillator
 '*
 oscillator
-    rdlong f, input                     ' read f
-    
-    add input, #4
     add t, f                            ' add t
-    
-    rdlong level, input                 ' read desired envelope level
-    
-    add input, #8                       ' (skip unused param)
     mov r0, t                           ' t -> r0 (t is left as t+f)
-
-    rdlong env, input                   ' read current envelope level
-
-    sub level, env                      ' put a slope on envelope movement
-    sar level, #6 wc
-
-    if_c cmpsub level, minus_one        ' level = (level - env) / 64
-    add env, level                      ' env += level
-
     shl mod, #5                         ' scale input
     add r0, mod                         ' modulate
-
-    wrlong env, input                   ' write back updated envelope
-
-    add input, #4
     shr r0, #8                          ' whole number t
-
     test r0, half wz                    ' sign into z
     and r0, half_mask
-
     cmp quarter, r0 wc                  ' odd quarter?
     negc r0, r0
-
     if_c and r0, quarter_mask
     shr env, #14                        ' scale envelope
-
     add r0, sine_ptr                    ' sine table
-    ' [nop]
 
     rdword r0, r0                       ' r0=log(sin(r0))
 
@@ -464,6 +511,9 @@ fb3             long    0               ' smoothing buffer for osc3 feedback
 fb7             long    0               ' smoothing buffer for osc7 feedback
 
 osc_t           long    0[8]
+osc_f           long    0[8]
+osc_env         long    0[8]
+osc_rate        long    0[8]
 
 input_ptr       res     1               ' frequency, level, 0, envelope (4 longs)
 alg_ptr         res     1
@@ -478,7 +528,7 @@ r0              res     1
 r1              res     1
 r2              res     1
 env             res     1
-level           res     1
+rate            res     1
 f               res     1
 t               res     1
 mod             res     1
