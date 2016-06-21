@@ -20,7 +20,7 @@ CON
     Type_Combo          =11 ' button with displayed 9 bit hex value, activated on adjust(1), adjusted in units on adjust(-$10 or $10)
 
 OBJ
-    vga         : "synth.vga"
+    vga         : "synth.ui.vga"
 
 VAR
     WORD    Line_                           ' line number/control ID of next added, or total number

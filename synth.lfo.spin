@@ -22,11 +22,13 @@ VAR
     WORD P_                     ' last phase
     BYTE Wave_                  ' one of the Wave_ constants
 
-PUB Init(EnvPtr)
+PUB Init(EnvPtr, ParamPtr, CounterPtr)
 {
 EnvPtr: long pointer to envelope parameters
+ParamPtr: long pointer to envelope patch
+CounterPtr: long pointer to envelope ticks
 }
-    env.Init(0, EnvPtr)
+    env.Init(0, EnvPtr, ParamPtr, CounterPtr)
 
 PUB Set(W, F)
 {

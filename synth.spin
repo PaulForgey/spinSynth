@@ -27,7 +27,8 @@ VAR
     '
     LONG    OscOutputs_[4]                      ' output per oscillator cog
     LONG    OscTriggers_[4]                     ' trigger per oscillator cog
-    LONG    OscInputs_[128]                     ' 4 cogs * 8 oscillators * 4 parameters = 128 longs total
+    LONG    OscInputs_[32*4]                    ' 4 cogs * 8 oscillators * 4 parameters = 128 longs total
+    LONG    Envelopes_[48*5]                    ' envelope for each oscillator (32) + LFO + Pitch for each voice (8)
 
     ' UI control IDs and values
     '
@@ -89,12 +90,12 @@ after setting up the UI, do things in this order:
         OscOutputs_[i] := osc[i].OutputPtr
         OscTriggers_[i] := osc[i].TriggerPtr
 
+    ' master audio output
+    out.Start(Out_Pin, @OscOutputs_, @OscTriggers_, 4, @Envelopes_, 48)
+
     ' allocate 4 oscillators each to 8 voices
     repeat i from 0 to 7
-        v[i].Init(@OscInputs_[i * 4 * 4], @Patch_, @Pedal_, @Bend_, @Wheel_)
-
-    ' master audio output
-    out.Start(Out_Pin, @OscOutputs_, @OscTriggers_, 4)
+        v[i].Init(@OscInputs_[i * 4 * 4], @Envelopes_[i * 5 * 6], out.CounterPtr, @Patch_, @Pedal_, @Bend_, @Wheel_)
 
     ' fire up the VGA display
     ui.Start(out.ScopePtr, graphics.GraphicsPtr)

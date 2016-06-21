@@ -6,92 +6,83 @@ See end of file for terms of use
 }}
 
 CON
-    Env_Max     = $3_ffff
-    Env_Mid     = $1_0600   ' level shown in Pct as 50 (actual patch value $103)
+    Env_Max     = $2_0000
+    Env_Mid     = $0_8304   ' level shown in Pct as 50 (actual patch value $103)
 
 VAR
-    LONG    ValuePtr_       ' long pointer to envelope value
-    LONG    EnvPtr_         ' word pointer to envelope: (rate,level) *4, entering 4th when key released +1 bool (looping)
+    LONG    ParamPtr_       ' word pointer to params: (rate,level) *4, entering 4th when key released +1 bool (looping)
+    LONG    EnvPtr_         ' long pointer to envelope control values
+    LONG    CounterPtr_     ' long pointer to envelope ticks
 
-    LONG    Duration_       ' duration, in units of system clock >> 16
-    LONG    Delta_          ' distance we need to travel
-    LONG    Base_           ' where we came from
-    LONG    Env_            ' current level
-    LONG    Clk_            ' system clock at start of transition
-    LONG    LastT_          ' system clock as last checked, upper 16 bits masked in
+    LONG    Duration_       ' number of envelope ticks to spend in this state
+    LONG    Count_          ' reference counter value at start of state
     LONG    Mod_            ' modulation/LFO wheel state
     WORD    Scale_          ' scale of entire envelope
     BYTE    State_          ' envelope state (0-5, 0=Init, 1=L1..4=L4, 5=L4 finished)
 
-PUB Init(ValuePtr, EnvPtr)
+PUB Init(ValuePtr, EnvPtr, ParamPtr, CounterPtr)
 {
 Initialize envelope
-ValuePtr: (optional) long pointer to envelope value
-EnvPtr: word pointer to envelope
+ValuePtr: (optional) long pointer to oscillator's envelope input
+EnvPtr: long pointer to envelope
+ParamPtr: word pointer to envelope parameters
+CounterPtr: long pointer to envelope ticks
 }
-    ValuePtr_ := ValuePtr
     EnvPtr_ := EnvPtr
-    Duration_ := 1
-    
-PRI EnvRate(S)
+    ParamPtr_ := ParamPtr
+    CounterPtr_ := CounterPtr
+    SetEnvPtr(ValuePtr)                     ' oscillator's envelope input
+    Silence
+
+PRI ParamRate(S)
 {
 Configured Rate, 0-$200
 }
     S := (S - 1) #> 0
-    return WORD[EnvPtr_][(S << 1)]
+    return WORD[ParamPtr_][(S << 1)]
 
-PRI EnvLevel(S)
+PRI ParamLevel(S)
 {
 Configured Level, 0-$200
 }
     S := (S - 1) #> 0
-    return WORD[EnvPtr_][(S << 1) | 1]
+    return WORD[ParamPtr_][(S << 1) | 1]
     
 PRI Looping
 {
 Loop L3->L2, Boolean
 }
-    return WORD[EnvPtr_][8] <> 0
+    return WORD[ParamPtr_][8] <> 0
 
-PRI SetLevel(L) | e, f, m
+PRI EnvLevel
 {
-Set effective oscillator output level with log2 scaling
-L: 0,Env_Max
-M: Modulation +/- $10000
+Current envelope (linear) level
 }
-    L := L #> 0 <# Env_Max
+    return LONG[EnvPtr_][0]
 
-    ' make note of where we are at
-    Env_ := L
+PRI SetEnvGoal(G)
+{
+Set envelope goal value
+}
+    LONG[EnvPtr_][1] := G
 
-    ' outside of persistent envelope state, add in modulation
-    m := Mod_ #> -$10000 <# $10000
-    m := (m * (L >> 3)) ~> 13   ' scale modulation factor by the envelope state
-    L += m                      ' then add to or subtract from it
+PRI SetEnvRate(R)
+{
+Set envelope rate value
+}
+    LONG[EnvPtr_][2] := R
 
-    L := L #> 0 <# Env_Max
+PRI SetEnvMod(M)
+{
+Set envelope modulation value
+}
+    LONG[EnvPtr_][3] := M
 
-    if NOT ValuePtr_
-        return L
-
-    ' only look at 15 MSBs
-    L >>= 3
-    e := >|L
-
-    ' 11 next most significant bits for lookup
-    if (e > 12)
-        L >>= e - 12
-    else
-        L <<= (12 - e)
-    L := (e << 16) | WORD[$c000][L & $7ff]
-
-    ' at this point, we are in range 0-$f_ffff. Scale it to 0-$8800 and invert.
-    ' Shift to the goofy bit arrangement needed by the oscillator (starting from 31 down).
-    ' Add an extra $800 to the final result.
-    L := (((L ^ $f_ffff) * $88) + $100) << 3
-
-    LONG[ValuePtr_] := L
-    return L
+PRI SetEnvPtr(P)
+{
+Set envelope oscillator output pointer
+}
+    LONG[EnvPtr_][4] := P
 
 PRI Transition(S) | rate, level
 {
@@ -103,18 +94,22 @@ Transiation state S:
 4- L4
 5- L4+1 (done)
 }
-    Clk_ := CNT     ' system clock at start of transition
-    State_ := S     ' new state
-    Base_ := Env_   ' level coming from
+    Count_ := LONG[CounterPtr_]
+    State_ := S
 
-    if S < 5
-        level := EnvLevel(S)
-        level := (level * level * Scale_) >> 9
-        Delta_ := level - Base_
-        rate := $200 - EnvRate(S)
-        Duration_ := ((rate * rate) >> 3) #> 1
-    else
-        SetLevel(Env_)
+    if S == 5
+        return
+
+    level := ParamLevel(S)
+    level := (level * level * Scale_) >> 10
+
+    Duration_ := $200 - ParamRate(S)
+    Duration_ := (Duration_ * Duration_) >> 1
+
+    rate := (||(level - EnvLevel) / (Duration_ #> 1)) #> 1
+
+    SetEnvRate(rate)
+    SetEnvGoal(level)
 
 PUB State
 {
@@ -127,15 +122,14 @@ PUB Silence
 Set output level to 0 and state to 5
 }
     State_ := 5
-    SetLevel(0)
+    SetEnvGoal(0)
+    SetEnvRate(Env_Max)
 
 PUB Modulate(M)
 {
 Set modulation value +/- $10000
 }
     Mod_ := M
-
-    result := SetLevel(Env_)
 
 PUB Down(Scale)
 {
@@ -152,39 +146,39 @@ Enter key-up state by transitioning to state L4
     Transition(4)
     Advance
     
-PUB Advance | t, d, l
+PUB Advance | count, mod
 {
 Idle advance our way through the envelope
-  completion of state 0 -> 1, 1 -> 2
-state 2 stays there until key up, or if looping is set, transitions back to state 2
-completion of state 3 -> 4
-state 4 is terminal
-within this scope, state 2 is also terminal if not looping. Regarless, state 3 needs an explicit transition
 }
-    if (State_ < 5) ' do nothing for state 5
-        t := (CNT - Clk_) & $ffff_0000                      ' measure elapsed time
-        
-        if (State_ == 0) OR (t <> LastT_)                   ' within the resolution we care about, update if different
-            if (State_ == 0)
-                State_ := 1
-            LastT_ := t                                     ' make note of current time
-    
-            t <#= (Duration_ << 16)                         ' limit elapsed time to duration
-            d := t / Duration_                              ' compute t*(rise/run) we should be at for this t
-            l := ((Delta_ ~> 4) * d) ~> 12                  ' base+t*(rise/run)
-            l := Base_ + l
+    count := LONG[CounterPtr_] - Count_                     ' how long have we been in this state?
 
-            SetLevel(l)                                     ' set the new level
-    
-            if (t => (Duration_ << 16))                     ' if we have elapsed duration, possible state change
-                if (State_ < 3)                             ' L1 -> L2, L2 -> L3
-                    Transition(State_ + 1)
-                elseif (State_ == 3 AND Looping)            ' L3 -> L2 only if looping
-                    Transition(2)
-                elseif (State_ == 4)
-                    Transition(5)                           ' L4 -> Done
+    if (State_ == 0) OR (count => Duration_)                ' advance if state 0 (immediately) or after requisite time spent
+        case State_
+            0:                                              ' key down transitions to state 1
+                Transition(1)
 
-    return Env_
+            1:
+                Transition(2)
+
+            2:
+                Transition(3)
+
+            3:
+                if Looping
+                    Transition(2)                           ' either loop between 3->2 or stay at 3
+
+            4:
+                Transition(5)
+
+            5:
+                ' do nothing
+
+    result := EnvLevel
+    mod := (Mod_ * (result >> 4)) ~> 12
+    SetEnvMod(mod)
+
+    result += mod
+    result := result #> 0 <# Env_Max
 
 {{
                             TERMS OF USE: MIT License

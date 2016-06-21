@@ -5,17 +5,15 @@ Copyright (c)2016 Paul Forgey
 See end of file for terms of use
 }}
 
-CON
-    Frac    = 13        ' number of fractional bits the coeefficients use
-
 VAR
     LONG    Cog_
-    LONG    Params_[6]
+    LONG    Params_[9]
 
     LONG    Profile_
+    LONG    Counter_
     BYTE    Scope_[480]             ' oscilliscope date
-    
-PUB Start(PinNum, InputsPtr, TriggersPtr, NumInputs)
+
+PUB Start(PinNum, InputsPtr, TriggersPtr, NumInputs, EnvelopesPtr, NumEnvelopes)
 {
 Start audio output
 PinNum:         audio output pin
@@ -29,8 +27,11 @@ NumInput:       array size of InputsPtr and TriggersPtr
     Params_[1] := InputsPtr
     Params_[2] := TriggersPtr
     Params_[3] := NumInputs
-    Params_[4] := @Profile_
-    Params_[5] := @Scope_
+    Params_[4] := EnvelopesPtr
+    Params_[5] := NumEnvelopes
+    Params_[6] := @Profile_
+    Params_[7] := @Counter_
+    Params_[8] := @Scope_
 
     return (Cog_ := cognew(@entry, @Params_) + 1)
     
@@ -52,7 +53,13 @@ PUB Profile
 {
 Get clock cycles spent per sample
 }
-    return Profile_
+    return -Profile_
+
+PUB CounterPtr
+{
+Get long pointer to value which increments every time we complete all envelopes
+}
+    return @Counter_
 
 DAT
     org
@@ -67,27 +74,44 @@ entry
     add r0, #4
     rdlong num_inputs, r0
     add r0, #4
+    rdlong envelopes_ptr, r0
+    add r0, #4
+    rdlong num_envelopes, r0
+    add r0, #4
     rdlong profile_ptr, r0
     add r0, #4
+    rdlong counter_ptr, r0
+    add r0, #4
     rdlong scope_ptr, r0
-    
+
     mov r0, #1                              ' set pin to output
     shl r0, pin
     or DIRA, r0
-    
+
     mov CTRA, pin
     movi CTRA, #%110_000                    ' duty cycle output
-    
+
     mov sptr, #0                            ' initialize scope index
+
+    mov envelope_ptr, envelopes_ptr         ' point to first envelope
+    mov envelope_cnt, num_envelopes
 
     mov tclk, CNT
     mov cnt_d, tclk
     add tclk, fsclk                         ' prime tclk
-    
+
 :window
     mov c1, #$10                            ' 16 samples per window
-    
+
 :sample    
+    sub envelope_cnt, #1 wz
+    if_z mov envelope_cnt, num_envelopes
+    if_z mov envelope_ptr, envelopes_ptr
+    if_z add counter, #1
+    wrlong counter, counter_ptr
+
+    call #envelope                          ' iterate an envelope (one per sample)
+
     mov c0, num_inputs                      ' for num_input inputs..
     mov iptr, inputs_ptr                    ' reset iptr to first input
     mov out, #0                             ' starting output value
@@ -125,7 +149,7 @@ entry
     cmp sptr, #0 wz                         ' trigger?
     test out, #$80 wc
     if_z_and_nc jmp #:skip
-    
+
     mov r0, sptr
     add r0, scope_ptr
     wrbyte out, r0                          ' update the oscilliscope
@@ -133,7 +157,7 @@ entry
     cmp sptr, s_480 wc
     if_nc mov sptr, #0
 :skip
-    
+
     add pos, #4                             ' next set of input samples
     djnz c1, #:sample
 
@@ -153,6 +177,87 @@ entry
 
     jmp #:window
 
+'*
+'* iterate an envelope
+'*
+envelope
+    rdlong env, envelope_ptr                    ' current value
+
+    mov r0, envelope_ptr                        ' note where we read it from
+    add envelope_ptr, #4
+
+    rdlong goal, envelope_ptr
+
+    add envelope_ptr, #4
+    sub goal, env                               ' find goal-env
+
+    rdlong rate, envelope_ptr
+
+    add envelope_ptr, #4
+    abs goal, goal wc                           ' consider minimum |goal| or rate
+
+    rdlong mod, envelope_ptr                    ' modulation value
+
+    add envelope_ptr, #4
+    max rate, goal
+
+    negc rate, rate                             ' restore sign
+    add env, rate                               ' move envelope
+
+    ' [nop]
+    ' [nop]
+
+    wrlong env, r0                              ' store moved value before external modulation
+
+    add env, mod
+    ' [nop]
+
+    rdlong eptr, envelope_ptr wz                ' pointer to log output value
+
+    add envelope_ptr, #4
+    if_z jmp envelope_ret                       ' we are done if no pointer
+
+    maxs env, env_max                           ' clamp envelope after modulation
+    mins env, #0
+
+    mov exp, #0                                 ' find log2 of linear value (cut-n-paste job from Propeller docs)
+
+    test env, num4 wz                           ' get integer portion of exponent, top justify
+    muxnz exp, exp4
+
+    if_z shl env, #16
+    test env, num3 wz
+    muxnz exp, exp3
+
+    if_z shl env, #8
+    test env, num2 wz
+    muxnz exp, exp2
+
+    if_z shl env, #4
+    test env, num1 wz
+    muxnz exp, exp1
+
+    if_z shl env, #2
+    test env, num0 wz
+    muxnz exp, exp0
+
+    if_z shl env, #1
+
+    shr env, #30-11                             ' justify sub-leading bits as word offset
+    and env, table_mask
+    add env, table_log
+
+    rdword env, env
+    or exp, env
+
+    mov r0, exp_max                             ' invert (bigger is quieter)
+    sub r0, exp
+
+    shl r0, #10                                 ' shift to where oscillator can use it
+    wrlong r0, eptr                             ' $11_0000 -> $4400_0000 (oscillator -> $8800)
+
+envelope_ret
+    ret
 
 sign            long    $8000_0000
 sign16          long    $0000_8000
@@ -161,6 +266,7 @@ fsclk           long    1814
 pos             long    0
 s_480           long    480
 cnt_d           long    0
+counter         long    0
 
 high            long    $000f_ffff
 low             long    $fff0_0000
@@ -168,11 +274,34 @@ high32s         long    $7fff_ffff
 scope_high      long    $1fff_ffff
 scope_low       long    $e000_0000
 
+num4            long    $ffff_0000
+num3            long    $ff00_0000
+num2            long    $f000_0000
+num1            long    $c000_0000
+num0            long    $8000_0000
+
+exp4            long    $0010_0000
+exp3            long    $0008_0000
+exp2            long    $0004_0000
+exp1            long    $0002_0000
+exp0            long    $0001_0000
+
+table_mask      long    $0ffe
+table_log       long    $c000
+
+env_max         long    $2_0000
+exp_max         long    $11_0000
+
 profile_ptr     res     1
+counter_ptr     res     1
 scope_ptr       res     1
 inputs_ptr      res     1
 triggers_ptr    res     1
 num_inputs      res     1
+envelopes_ptr   res     1
+num_envelopes   res     1
+envelope_ptr    res     1
+envelope_cnt    res     1
 
 r0              res     1
 r1              res     1
@@ -186,6 +315,12 @@ ptr             res     1
 pin             res     1
 out             res     1
 tclk            res     1
+eptr            res     1
+exp             res     1
+env             res     1
+goal            res     1
+rate            res     1
+mod             res     1
 
 {{
                             TERMS OF USE: MIT License

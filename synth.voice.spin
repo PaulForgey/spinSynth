@@ -71,7 +71,7 @@ OBJ
     lfo             : "synth.lfo"
 
 VAR
-    LONG    VoicePtr_                       ' long pointer to allocated oscillator parameters
+    LONG    VoicePtr_                       ' long pointer to allocated oscillators
     LONG    PatchPtr_                       ' word pointer to patch data
     LONG    PedalPtr_                       ' byte pointer to pedal state
     LONG    BendPtr_                        ' long pointer to pitch bend state
@@ -86,11 +86,13 @@ VAR
     BYTE    KeyDown_                        ' key down state
     BYTE    Playing_                        ' playing state (depending on pedal, is not simply KeyDown_)
     
-PUB Init(VoicePtr, PatchPtr, PedalPtr, BendPtr, WheelPtr) | i
+PUB Init(VoicePtr, EnvPtr, CounterPtr, PatchPtr, PedalPtr, BendPtr, WheelPtr) | i
 {
 Initialize voice instance
 
-VoicePtr:   long pointer to allocated oscillator parameters
+VoicePtr:   long pointer to allocated oscillators
+EnvPtr:     long pointer to allocated envelopes
+CounterPtr: long pointer to output's envelope counter
 PatchPtr:   word pointer to patch data
 PedalPtr:   byte pointer to pedal state
 BendPtr:    long pointer to pitch bend state
@@ -106,9 +108,9 @@ WheelPtr:   byte pointer to modulation wheel state
 
     ' each oscillator has an attached envelope
     repeat i from 0 to Patch_Ops - 1
-        env[i].Init(@LONG[VoicePtr_][i * 4 + 1], @WORD[PatchPtr][Patch_Op + Patch_Env + Patch_OpWords * i])
-    lfo.Init(@WORD[PatchPtr][Patch_LFO_R1])
-    pitch.Init(0, @WORD[PatchPtr][Patch_Pitch_R1])
+        env[i].Init(@LONG[VoicePtr_][i * 4 + 1], @LONG[EnvPtr][i*5], @WORD[PatchPtr][Patch_Op + Patch_Env + Patch_OpWords * i], CounterPtr)
+    lfo.Init(@LONG[EnvPtr][4*5], @WORD[PatchPtr][Patch_LFO_R1], CounterPtr)
+    pitch.Init(0, @LONG[EnvPtr][5*5], @WORD[PatchPtr][Patch_Pitch_R1], CounterPtr)
 
 PUB Advance | op, l, c
 {
@@ -121,8 +123,8 @@ Advance envelopes in time
 
     l := lfo.Value
 
-    pitch.Advance
-    Pitch_ := pitch.Modulate((LFO_Pitch * l) ~> 12)
+    pitch.Modulate((LFO_Pitch * l) ~> 12)
+    Pitch_ := pitch.Advance
 
     repeat op from 0 to Patch_Ops-1
         SetFrequency(op, BentFrequency(op))
@@ -160,6 +162,7 @@ Enter envelope key-down states with velocity scale
 
     ' pitch envelope
     Pitch_ := pitch.Down($200)
+    Pitch_ := env#Env_Mid
 
     ' if portamento is in effect, set the target slide value
     if P
@@ -262,7 +265,7 @@ For a note value in cents, return an actual frequency per configured multiplier 
 
         n += (PitchBend * 1200) ~> 12
 
-    n += ((Pitch_ - pitch#Env_Mid) * 3_000) ~> 16
+    n += ((Pitch_ - env#Env_Mid) * 3_000) ~> 16
 
     return FrequencyForIndex(Op, n)
 
