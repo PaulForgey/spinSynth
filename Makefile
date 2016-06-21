@@ -10,7 +10,7 @@ DEPS=\
 	synth.ui.spin \
 	synth.env.spin \
 	synth.out.spin \
-	synth.vga.spin \
+	synth.ui.vga.spin \
 	synth.flash.spin \
 	synth.spin \
 	synth.voice.spin \
