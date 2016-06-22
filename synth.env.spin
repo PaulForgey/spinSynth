@@ -14,7 +14,6 @@ VAR
     LONG    EnvPtr_         ' long pointer to envelope control values
     LONG    CounterPtr_     ' long pointer to envelope ticks
 
-    LONG    Duration_       ' number of envelope ticks to spend in this state
     LONG    Count_          ' reference counter value at start of state
     LONG    Mod_            ' modulation/LFO wheel state
     WORD    Scale_          ' scale of entire envelope
@@ -66,6 +65,12 @@ Set envelope goal value
 }
     LONG[EnvPtr_][1] := G
 
+PRI EnvGoal
+{
+Return current envelope goal value
+}
+    return LONG[EnvPtr_][1]
+
 PRI SetEnvRate(R)
 {
 Set envelope rate value
@@ -103,10 +108,9 @@ Transiation state S:
     level := ParamLevel(S)
     level := (level * level * Scale_) >> 10
 
-    Duration_ := $200 - ParamRate(S)
-    Duration_ := (Duration_ * Duration_) >> 1
-
-    rate := (||(level - EnvLevel) / (Duration_ #> 1)) #> 1
+    rate := $200 - ParamRate(S)
+    rate := ((rate * rate) >> 1) #> 1
+    rate := Env_Max / rate
 
     SetEnvRate(rate)
     SetEnvGoal(level)
@@ -152,7 +156,7 @@ Idle advance our way through the envelope
 }
     count := LONG[CounterPtr_] - Count_                     ' how long have we been in this state?
 
-    if (State_ == 0) OR (count => Duration_)                ' advance if state 0 (immediately) or after requisite time spent
+    if (State_ == 0) OR (EnvLevel == EnvGoal)               ' advance if state 0 (immediately) or after hitting goal
         case State_
             0:                                              ' key down transitions to state 1
                 Transition(1)
