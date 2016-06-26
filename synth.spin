@@ -95,7 +95,7 @@ after setting up the UI, do things in this order:
 
     ' allocate 4 oscillators each to 8 voices
     repeat i from 0 to 7
-        v[i].Init(@OscInputs_[i * 4 * 4], @Envelopes_[i * 5 * 6], out.CounterPtr, @Patch_, @Pedal_, @Bend_, @Wheel_)
+        v[i].Init(@OscInputs_[i * 4 * 4], @Envelopes_[i * 5 * 6], @Patch_, @Pedal_, @Bend_, @Wheel_)
 
     ' fire up the VGA display
     ui.Start(out.ScopePtr, graphics.GraphicsPtr)

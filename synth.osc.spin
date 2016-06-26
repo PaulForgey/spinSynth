@@ -360,7 +360,7 @@ oscillator
     cmp quarter, r0 wc                  ' odd quarter?
     negc r0, r0
     if_c and r0, quarter_mask
-    shr env, #14                        ' scale envelope
+    shr env, #1                         ' scale envelope ($2_2000 -> $1_1000, word offset $8800)
     add r0, sine_ptr                    ' sine table
 
     rdword r0, r0                       ' r0=log(sin(r0))
