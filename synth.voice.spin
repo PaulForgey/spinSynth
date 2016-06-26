@@ -86,13 +86,12 @@ VAR
     BYTE    KeyDown_                        ' key down state
     BYTE    Playing_                        ' playing state (depending on pedal, is not simply KeyDown_)
     
-PUB Init(VoicePtr, EnvPtr, CounterPtr, PatchPtr, PedalPtr, BendPtr, WheelPtr) | i
+PUB Init(VoicePtr, EnvPtr, PatchPtr, PedalPtr, BendPtr, WheelPtr) | i
 {
 Initialize voice instance
 
 VoicePtr:   long pointer to allocated oscillators
 EnvPtr:     long pointer to allocated envelopes
-CounterPtr: long pointer to output's envelope counter
 PatchPtr:   word pointer to patch data
 PedalPtr:   byte pointer to pedal state
 BendPtr:    long pointer to pitch bend state
@@ -108,9 +107,9 @@ WheelPtr:   byte pointer to modulation wheel state
 
     ' each oscillator has an attached envelope
     repeat i from 0 to Patch_Ops - 1
-        env[i].Init(@LONG[VoicePtr_][i * 4 + 1], @LONG[EnvPtr][i*5], @WORD[PatchPtr][Patch_Op + Patch_Env + Patch_OpWords * i], CounterPtr)
-    lfo.Init(@LONG[EnvPtr][4*5], @WORD[PatchPtr][Patch_LFO_R1], CounterPtr)
-    pitch.Init(0, @LONG[EnvPtr][5*5], @WORD[PatchPtr][Patch_Pitch_R1], CounterPtr)
+        env[i].Init(@LONG[VoicePtr_][i * 4 + 1], @LONG[EnvPtr][i*5], @WORD[PatchPtr][Patch_Op + Patch_Env + Patch_OpWords * i])
+    lfo.Init(@LONG[EnvPtr][4*5], @WORD[PatchPtr][Patch_LFO_R1])
+    pitch.Init(0, @LONG[EnvPtr][5*5], @WORD[PatchPtr][Patch_Pitch_R1])
 
 PUB Advance | op, l, c
 {

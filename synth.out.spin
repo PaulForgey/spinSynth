@@ -210,51 +210,20 @@ envelope
     wrlong env, r0                              ' store moved value before external modulation
 
     add env, mod
-    ' [nop]
+    maxs env, env_max                           ' clamp envelope after modulation
 
     rdlong eptr, envelope_ptr wz                ' pointer to log output value
 
     add envelope_ptr, #4
     if_z jmp envelope_ret                       ' we are done if no pointer
 
-    maxs env, env_max                           ' clamp envelope after modulation
     mins env, #0
+    mov r0, env_max
 
-    mov exp, #0                                 ' find log2 of linear value (cut-n-paste job from Propeller docs)
+    sub r0, env
+    ' [nop]
 
-    test env, num4 wz                           ' get integer portion of exponent, top justify
-    muxnz exp, exp4
-
-    if_z shl env, #16
-    test env, num3 wz
-    muxnz exp, exp3
-
-    if_z shl env, #8
-    test env, num2 wz
-    muxnz exp, exp2
-
-    if_z shl env, #4
-    test env, num1 wz
-    muxnz exp, exp1
-
-    if_z shl env, #2
-    test env, num0 wz
-    muxnz exp, exp0
-
-    if_z shl env, #1
-
-    shr env, #30-11                             ' justify sub-leading bits as word offset
-    and env, table_mask
-    add env, table_log
-
-    rdword env, env
-    or exp, env
-
-    mov r0, exp_max                             ' invert (bigger is quieter)
-    sub r0, exp
-
-    shl r0, #10                                 ' shift to where oscillator can use it
-    wrlong r0, eptr                             ' $11_0000 -> $4400_0000 (oscillator -> $8800)
+    wrlong r0, eptr
 
 envelope_ret
     ret
@@ -274,23 +243,7 @@ high32s         long    $7fff_ffff
 scope_high      long    $1fff_ffff
 scope_low       long    $e000_0000
 
-num4            long    $ffff_0000
-num3            long    $ff00_0000
-num2            long    $f000_0000
-num1            long    $c000_0000
-num0            long    $8000_0000
-
-exp4            long    $0010_0000
-exp3            long    $0008_0000
-exp2            long    $0004_0000
-exp1            long    $0002_0000
-exp0            long    $0001_0000
-
-table_mask      long    $0ffe
-table_log       long    $c000
-
-env_max         long    $2_0000
-exp_max         long    $11_0000
+env_max         long    $2_2000
 
 profile_ptr     res     1
 counter_ptr     res     1

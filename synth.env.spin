@@ -12,26 +12,38 @@ CON
 VAR
     LONG    ParamPtr_       ' word pointer to params: (rate,level) *4, entering 4th when key released +1 bool (looping)
     LONG    EnvPtr_         ' long pointer to envelope control values
-    LONG    CounterPtr_     ' long pointer to envelope ticks
 
-    LONG    Count_          ' reference counter value at start of state
     LONG    Mod_            ' modulation/LFO wheel state
     WORD    Scale_          ' scale of entire envelope
     BYTE    State_          ' envelope state (0-5, 0=Init, 1=L1..4=L4, 5=L4 finished)
 
-PUB Init(ValuePtr, EnvPtr, ParamPtr, CounterPtr)
+PUB Init(ValuePtr, EnvPtr, ParamPtr)
 {
 Initialize envelope
 ValuePtr: (optional) long pointer to oscillator's envelope input
 EnvPtr: long pointer to envelope
 ParamPtr: word pointer to envelope parameters
-CounterPtr: long pointer to envelope ticks
 }
     EnvPtr_ := EnvPtr
     ParamPtr_ := ParamPtr
-    CounterPtr_ := CounterPtr
-    SetEnvPtr(ValuePtr)                     ' oscillator's envelope input
+    SetValuePtr(ValuePtr)                     ' oscillator's envelope input
     Silence
+
+PRI EnvLog(V) | e
+{
+log2 scale value 0:Env_Max still in range 0:$2_2000
+}
+    e := >|V
+
+    if e > 0
+        e--
+
+    if e < 11
+        V <<= (11 - e)
+    else
+        V >>= (e - 11)
+
+    return ((e << 16) | WORD[$c000][V & $7ff]) >> 3
 
 PRI ParamRate(S)
 {
@@ -55,7 +67,7 @@ Loop L3->L2, Boolean
 
 PRI EnvLevel
 {
-Current envelope (linear) level
+Current envelope level
 }
     return LONG[EnvPtr_][0]
 
@@ -63,6 +75,8 @@ PRI SetEnvGoal(G)
 {
 Set envelope goal value
 }
+    if LogScale
+        G := EnvLog(G)
     LONG[EnvPtr_][1] := G
 
 PRI EnvGoal
@@ -81,13 +95,21 @@ PRI SetEnvMod(M)
 {
 Set envelope modulation value
 }
+'    if LogScale
+'        M := EnvLog(M)
     LONG[EnvPtr_][3] := M
 
-PRI SetEnvPtr(P)
+PRI SetValuePtr(P)
 {
 Set envelope oscillator output pointer
 }
     LONG[EnvPtr_][4] := P
+
+PRI LogScale
+{
+return TRUE if we are in log scale
+}
+    return LONG[EnvPtr_][4] <> 0
 
 PRI Transition(S) | rate, level
 {
@@ -99,18 +121,24 @@ Transiation state S:
 4- L4
 5- L4+1 (done)
 }
-    Count_ := LONG[CounterPtr_]
     State_ := S
 
     if S == 5
         return
 
     level := ParamLevel(S)
-    level := (level * level * Scale_) >> 10
+    level := ((level * level * Scale_) >> 10) <# Env_Max
 
     rate := $200 - ParamRate(S)
-    rate := ((rate * rate) >> 1) #> 1
-    rate := Env_Max / rate
+    rate := rate * rate
+
+    ' attack faster than decay
+    if LogScale AND EnvLevel < level
+        rate >>= 3
+    else
+        rate >>= 1
+
+    rate := Env_Max / (rate #> 1)
 
     SetEnvRate(rate)
     SetEnvGoal(level)
@@ -150,12 +178,10 @@ Enter key-up state by transitioning to state L4
     Transition(4)
     Advance
     
-PUB Advance | count, mod
+PUB Advance | mod, e
 {
 Idle advance our way through the envelope
 }
-    count := LONG[CounterPtr_] - Count_                     ' how long have we been in this state?
-
     if (State_ == 0) OR (EnvLevel == EnvGoal)               ' advance if state 0 (immediately) or after hitting goal
         case State_
             0:                                              ' key down transitions to state 1
@@ -177,11 +203,12 @@ Idle advance our way through the envelope
             5:
                 ' do nothing
 
-    result := EnvLevel
-    mod := (Mod_ * (result >> 4)) ~> 12
+    e := EnvLevel
+    
+    mod := (Mod_ * (e >> 3)) ~> 13
     SetEnvMod(mod)
 
-    result += mod
+    result := e + mod
     result := result #> 0 <# Env_Max
 
 {{
