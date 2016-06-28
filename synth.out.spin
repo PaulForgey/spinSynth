@@ -218,10 +218,39 @@ envelope
     if_z jmp envelope_ret                       ' we are done if no pointer
 
     mins env, #0
-    mov r0, env_max
+    mov exp, #0                                 ' log2 of linear value (for ultimate linear output, which is exp2)                                
+    test env, num4 wz                           ' (cut-n-paste job from Propeller docs)
+    muxnz exp, exp4                             ' find integer portion of exponent, top justify
 
-    sub r0, env
-    ' [nop]
+    if_z shl env, #16
+    test env, num3 wz
+    muxnz exp, exp3
+
+    if_z shl env, #8
+    test env, num2 wz
+    muxnz exp, exp2
+
+    if_z shl env, #4
+    test env, num1 wz
+    muxnz exp, exp1
+
+    if_z shl env, #2
+    test env, num0 wz
+    muxnz exp, exp0
+
+    if_z shl env, #1
+
+    shr env, #30-11                             ' justify sub-leading bits as word offset
+    and env, table_mask
+    add env, table_log
+
+    rdword env, env
+    or exp, env
+
+    mov r0, exp_max                             ' invert (bigger is quieter), then shift to envelope's range 0:$2_2000
+    sub r0, exp
+
+    shr r0, #3                                  ' $11_0000 -> $2_2000
 
     wrlong r0, eptr
 
@@ -243,7 +272,23 @@ high32s         long    $7fff_ffff
 scope_high      long    $1fff_ffff
 scope_low       long    $e000_0000
 
-env_max         long    $2_2000
+num4            long    $ffff_0000
+num3            long    $ff00_0000
+num2            long    $f000_0000
+num1            long    $c000_0000
+num0            long    $8000_0000
+
+exp4            long    $0010_0000
+exp3            long    $0008_0000
+exp2            long    $0004_0000
+exp1            long    $0002_0000
+exp0            long    $0001_0000
+
+table_mask      long    $0ffe
+table_log       long    $c000
+
+env_max         long    $2_0000
+exp_max         long    $11_0000
 
 profile_ptr     res     1
 counter_ptr     res     1

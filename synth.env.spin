@@ -29,22 +29,6 @@ ParamPtr: word pointer to envelope parameters
     SetValuePtr(ValuePtr)                     ' oscillator's envelope input
     Silence
 
-PRI EnvLog(V) | e
-{
-log2 scale value 0:Env_Max still in range 0:$2_2000
-}
-    e := >|V
-
-    if e > 0
-        e--
-
-    if e < 11
-        V <<= (11 - e)
-    else
-        V >>= (e - 11)
-
-    return ((e << 16) | WORD[$c000][V & $7ff]) >> 3
-
 PRI ParamRate(S)
 {
 Configured Rate, 0-$200
@@ -75,8 +59,6 @@ PRI SetEnvGoal(G)
 {
 Set envelope goal value
 }
-    if LogScale
-        G := EnvLog(G)
     LONG[EnvPtr_][1] := G
 
 PRI EnvGoal
@@ -95,8 +77,6 @@ PRI SetEnvMod(M)
 {
 Set envelope modulation value
 }
-'    if LogScale
-'        M := EnvLog(M)
     LONG[EnvPtr_][3] := M
 
 PRI SetValuePtr(P)
@@ -104,12 +84,6 @@ PRI SetValuePtr(P)
 Set envelope oscillator output pointer
 }
     LONG[EnvPtr_][4] := P
-
-PRI LogScale
-{
-return TRUE if we are in log scale
-}
-    return LONG[EnvPtr_][4] <> 0
 
 PRI Transition(S) | rate, level
 {
@@ -127,18 +101,11 @@ Transiation state S:
         return
 
     level := ParamLevel(S)
-    level := ((level * level * Scale_) >> 10) <# Env_Max
+    level := ((level * level * Scale_) >> 10)
 
     rate := $200 - ParamRate(S)
-    rate := rate * rate
-
-    ' attack faster than decay
-    if LogScale AND EnvLevel < level
-        rate >>= 3
-    else
-        rate >>= 1
-
-    rate := Env_Max / (rate #> 1)
+    rate := ((rate * rate) >> 1) #> 1
+    rate := Env_Max / rate
 
     SetEnvRate(rate)
     SetEnvGoal(level)
