@@ -80,7 +80,7 @@ VAR
     LONG    Pitch_                          ' pitch envelope value
     LONG    Rate_                           ' portamento slide rate (0 for none)
     LONG    Clk_                            ' portamento clock sync
-    WORD    Frequency_[Patch_Ops]           ' frequency (in cents) of oscillator
+    WORD    Frequency_[Patch_Ops]           ' frequency (in units) of oscillator
     WORD    Slide_[Patch_Ops]               ' portamento slide to frequency
     BYTE    Key_                            ' note being played
     BYTE    KeyDown_                        ' key down state
@@ -217,9 +217,9 @@ V:  Velocity $01-$7f
     s := Frequency(Op)              ' frequency configuration
 
     if (s & $80)
-        n := K * 100                ' note as played
+        n := IndexForNote(K)        ' note as played
     else
-        n := s * 100                ' fixed frequency
+        n := IndexForNote(s)        ' fixed frequency
 
     n += Detune(Op)                 ' detune as configured
 
@@ -245,7 +245,7 @@ V:  Velocity $01-$7f
 
 PRI BentFrequency(Op) | p, b, n, s
 {
-For a note value in cents, return an actual frequency per configured multiplier and pitch bend/portamento state
+Return an actual frequency per configured multiplier and pitch bend/portamento state
 }
     n := Frequency_[Op]
     b := n & $8000
@@ -262,7 +262,7 @@ For a note value in cents, return an actual frequency per configured multiplier 
                 n := (n + p) <# s
             Frequency_[Op] := n | b
 
-        n += (PitchBend * 1200) ~> 12
+        n += PitchBend ~> 1
 
     n += ((Pitch_ - env#Env_Mid) * 3_000) ~> 16
 
@@ -360,18 +360,17 @@ Detune setting, -256 - +255
     
     if (v & $100)
         v := -($200 - v)
-    return v
+    return v << 1
 
 PRI FrequencyForIndex(Op, N) : f | octave, index
 {
-Given a note in cents, return frequency with multiplier
-N: note 0-13199
+Given a note in units of $800 per octave, return frequency with multiplier
+N: note 0:$57ff
 }
-    N #>= 0
-    N <#= 13199
-    octave := N / 1200
-    index := ((N // 1200) * $800) / 1200
-    ' within the octave, find 2^(n/1200)
+    N := N #> 0 <# $57ff
+    octave := N >> 11
+    index := N & $7ff
+    ' within the octave, find 2^(n/$800)
     f := (WORD[$d000][index] | $1_0000) >> 4
     ' multiply by C (base note per octave)
     f *= Freq_C10
@@ -379,6 +378,19 @@ N: note 0-13199
     f := f >> (12 + (10 - octave))
     ' now apply multiplier
     f := (f * Multiplier(Op)) >> 8
+
+PRI IndexForNote(N) | octave, index
+{
+Given a MIDI note value, return the frequency units
+}
+    octave := N / 12
+    index := N // 12
+
+    return $800 * octave + Notes[index]
+
+DAT
+' frequency units along the octave (of $800) where the 11 notes live
+Notes   WORD    0, 171, 341, 512, 683, 853, 1024, 1195, 1365, 1536, 1707, 1877
 
 {{
                             TERMS OF USE: MIT License
