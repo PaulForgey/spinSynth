@@ -122,13 +122,13 @@ Advance envelopes in time
 
     l := lfo.Value
 
-    pitch.Modulate((LFO_Pitch * l) ~> 12)
+    pitch.Modulate((LFO_Pitch * l) ~> 8)
     Pitch_ := pitch.Advance
 
     repeat op from 0 to Patch_Ops-1
         SetFrequency(op, BentFrequency(op))
 
-        c := WheelSense(Op) * Wheel + ((LFOModSense(Op) * l) ~> 9)
+        c := WheelSense(Op) * Wheel + ((LFOModSense(Op) * l) ~> 8)
         env[op].Modulate(c)
         env[op].Advance
 
@@ -264,7 +264,7 @@ Return an actual frequency per configured multiplier and pitch bend/portamento s
 
         n += PitchBend ~> 1
 
-    n += ((Pitch_ - env#Env_Mid) * 3_000) ~> 16
+    n += (Pitch_ - env#Env_Mid) ~> 4
 
     return FrequencyForIndex(Op, n)
 
